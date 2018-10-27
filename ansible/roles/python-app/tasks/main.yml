@@ -1,0 +1,55 @@
+---
+- name: Install application dependencies
+  become: true
+  apt:
+    name:
+      - git
+      - python3-pip
+    state: latest
+
+- name: Install pipenv
+  become: true
+  pip:
+    name: pipenv
+    state: latest
+
+- name: Create project directory
+  become: true
+  file:
+    owner: "{{ python_app_user }}"
+    path: "{{ python_app_root }}"
+    recurse: true
+    state: directory
+
+- name: Update project source code
+  become: true
+  become_user: "{{ python_app_user }}"
+  git:
+    depth: 1
+    dest: "{{ python_app_root }}"
+    force: true
+    repo: "{{ python_app_repo }}"
+    version: "{{ python_app_version }}"
+
+- name: Install python dependencies
+  become: yes
+  become_user: "{{ python_app_user }}"
+  command: pipenv install -r requirements.txt
+  args:
+    chdir: "{{ python_app_root }}"
+
+- name: Get location of virtualenv
+  become: yes
+  become_user: "{{ python_app_user }}"
+  command: pipenv --venv
+  args:
+    chdir: "{{ python_app_root }}"
+  register: venv_location_check
+
+- name: Save location of virtualenv
+  set_fact:
+    python_app_venv: "{{ venv_location_check.stdout }}"
+
+- debug:
+    msg: "Python virtualenv located at {{ python_app_venv }}"
+    verbosity: 1

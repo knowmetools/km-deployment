@@ -1,0 +1,15 @@
+---
+gunicorn_user: gunicorn
+nginx_user: nginx
+
+# The messy syntax is required so we can dynamically set the user's names.
+users: "{
+    '{{ gunicorn_user }}': {},
+    '{{ nginx_user }}': { 'create_home': false },
+  }"
+
+
+python_app_name: km-api
+python_app_repo: https://github.com/knowmetools/km-api
+
+python_app_user: "{{ gunicorn_user }}"

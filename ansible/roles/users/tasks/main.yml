@@ -1,0 +1,7 @@
+---
+- name: Create users
+  become: true
+  user:
+    create_home: "{{ item.value.create_home | default(omit) }}"
+    name: "{{ item.key }}"
+  with_dict: "{{ users }}"
