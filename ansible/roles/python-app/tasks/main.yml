@@ -37,7 +37,7 @@
 - name: Install python dependencies
   become: yes
   become_user: "{{ python_app_user }}"
-  command: pipenv install -r requirements.txt
+  command: pipenv sync
   args:
     chdir: "{{ python_app_root }}"
 

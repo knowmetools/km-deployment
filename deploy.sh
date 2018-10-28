@@ -72,21 +72,30 @@ echo
 echo "Obtaining Terraform outputs..."
 TERRAFORM_OUTPUTS=$(cd ${TF_DIR}; terraform output -json)
 echo "Done."
+echo
 
 echo "Parsing data from Terraform oututs..."
-#ADMIN_PASSWORD=$(cd ${TF_DIR}; terraform output admin_password)
-#DB_PASSWORD=$(cd ${TF_DIR}; terraform output db_password)
-#SECRET_KEY=$(cd ${TF_DIR}; terraform output secret_key)
-#SERVER_HOSTNAME=$(cd ${TF_DIR}; terraform output hostname)
+AWS_REGION=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .aws_region.value)
+DB_HOST=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .database_host.value)
+DB_NAME=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .database_name.value)
+DB_PASSWORD=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .database_password.value)
+DB_PORT=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .database_port.value)
+DB_USER=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .database_user.value)
+DJANGO_SECRET_KEY=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .django_secret_key.value)
+STATIC_FILES_BUCKET=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .static_files_bucket.value)
 WEBSERVER_DOMAIN=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .webserver_domain.value)
 echo "Done."
 echo
 
 echo "Deployment Parameters:"
-#echo "    Admin Password: <sensitive>"
-#echo "    Database Password: <sensitive>"
-#echo "    Domain Name: ${SERVER_HOSTNAME}"
-#echo "    Secret Key: <sensitive>"
+echo "    AWS Region: ${AWS_REGION}"
+echo "    Database Host: ${DB_HOST}"
+echo "    Database Name: ${DB_NAME}"
+echo "    Database Password: <sensitive>"
+echo "    Database Port: ${DB_PORT}"
+echo "    Database User: ${DB_USER}"
+echo "    Django Secret Key: <sensitive>"
+echo "    Static Files Bucket: ${STATIC_FILES_BUCKET}"
 echo "    Webserver Domain: ${WEBSERVER_DOMAIN}"
 echo
 
@@ -117,5 +126,13 @@ echo
 
     ansible-playbook \
         --inventory ${inventory_file} \
+        --extra-vars "aws_region='${AWS_REGION}'" \
+        --extra-vars "db_host='${DB_HOST}'" \
+        --extra-vars "db_name='${DB_NAME}'" \
+        --extra-vars "db_password='${DB_PASSWORD}'" \
+        --extra-vars "db_port='${DB_PORT}'" \
+        --extra-vars "db_user='${DB_USER}'" \
+        --extra-vars "django_secret_key='${DJANGO_SECRET_KEY}'" \
+        --extra-vars "static_files_bucket='${STATIC_FILES_BUCKET}'" \
         deploy.yml
 )

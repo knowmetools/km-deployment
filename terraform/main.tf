@@ -125,8 +125,10 @@ resource "aws_instance" "webserver" {
 ################################################################################
 
 resource "aws_s3_bucket" "static" {
-  acl    = "public-read"
-  region = "${var.aws_region}"
+  acl           = "public-read"
+  bucket_prefix = "${replace(local.full_name, " ", "-")}-static"
+  force_destroy = true
+  region        = "${var.aws_region}"
 
   tags = "${merge(
     local.base_tags,
@@ -258,6 +260,14 @@ resource "random_string" "db_password" {
   }
 }
 
+resource "random_string" "django_secret_key" {
+  length = 50
+
+  keepers {
+    instance_id = "${aws_instance.webserver.id}"
+  }
+}
+
 ################################################################################
 #                                 IAM Policies                                 #
 ################################################################################
@@ -269,6 +279,11 @@ resource "aws_iam_instance_profile" "web" {
 resource "aws_iam_role" "web" {
   assume_role_policy = "${data.aws_iam_policy_document.instance-assume-role-policy.json}"
   description        = "Role for ${var.application_name} webservers."
+}
+
+resource "aws_iam_role_policy_attachment" "webserver" {
+  policy_arn = "${aws_iam_policy.webserver.arn}"
+  role       = "${aws_iam_role.web.name}"
 }
 
 resource "aws_iam_policy" "webserver" {
@@ -317,7 +332,7 @@ resource "aws_iam_policy" "webserver" {
         "s3:ListMultipartUploadParts",
         "s3:AbortMultipartUpload"
       ],
-      "Resource": "arn:aws:s3:::${aws_s3_bucket.static.id}\/*"
+      "Resource": "arn:aws:s3:::${aws_s3_bucket.static.id}/*"
     }
   ]
 }

@@ -1,0 +1,18 @@
+---
+- name: Run migrations
+  become: true
+  become_user: "{{ django_user }}"
+  environment: "{{ django_env }}"
+  django_manage:
+    app_path: "{{ django_project_root }}"
+    command: migrate
+    virtualenv: "{{ django_venv }}"
+
+- name: Collect staticfiles
+  become: true
+  become_user: "{{ django_user }}"
+  environment: "{{ django_env }}"
+  django_manage:
+    app_path: "{{ django_project_root }}"
+    command: collectstatic
+    virtualenv: "{{ django_venv }}"
