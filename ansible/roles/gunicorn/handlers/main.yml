@@ -1,0 +1,16 @@
+- name: daemon reload
+  become: true
+  systemd:
+    daemon_reload: true
+
+- name: gunicorn socket restart
+  become: true
+  systemd:
+    name: gunicorn.socket
+    state: restarted
+
+- name: gunicorn reload
+  become: true
+  systemd:
+    name: gunicorn.service
+    state: reloaded

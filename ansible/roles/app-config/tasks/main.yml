@@ -1,0 +1,16 @@
+---
+- name: Create configuration directory
+  become: true
+  file:
+    mode: 0700
+    owner: "{{ app_config_user }}"
+    path: "{{ app_config_dir }}"
+    state: directory
+
+- name: Create environment file
+  become: true
+  template:
+    dest: "{{ app_config_env_file }}"
+    mode: 0400
+    owner: "{{ app_config_user }}"
+    src: environment.j2

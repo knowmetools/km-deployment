@@ -17,5 +17,7 @@
 
   roles:
     - users
+    - app-config
     - python-app
     - django
+    - gunicorn

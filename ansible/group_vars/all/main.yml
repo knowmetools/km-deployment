@@ -1,4 +1,3 @@
-
 ---
 gunicorn_user: gunicorn
 nginx_user: nginx
@@ -40,3 +39,14 @@ django_env:
   DJANGO_SECRET_KEY: "{{ django_secret_key }}"
 
   DJANGO_SES_ENABLED: True
+
+
+app_config_dir: /etc/km-api
+app_config_env: "{{ django_env }}"
+app_config_user: "{{ gunicorn_user }}"
+
+
+gunicorn_application: km_api.wsgi:application
+gunicorn_env_file: "{{ app_config_env_file }}"
+gunicorn_venv: "{{ python_app_venv }}"
+gunicorn_working_directory: "{{ django_project_root }}"

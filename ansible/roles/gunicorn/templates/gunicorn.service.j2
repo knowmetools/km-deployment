@@ -1,0 +1,19 @@
+[Unit]
+Description=gunicorn daemon
+Requires=gunicorn.socket
+After=network.target
+
+[Service]
+PIDFile=/run/gunicorn/pid
+User={{ gunicorn_user }}
+EnvironmentFile=-{{ gunicorn_env_file }}
+RuntimeDirectory=gunicorn
+WorkingDirectory={{ gunicorn_working_directory }}
+ExecStart={{ gunicorn_executable }} --pid /run/gunicorn/pid   \
+--bind {{ gunicorn_socket }} {{ gunicorn_application }}
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s TERM $MAINPID
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

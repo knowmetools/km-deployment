@@ -126,7 +126,7 @@ resource "aws_instance" "webserver" {
 
 resource "aws_s3_bucket" "static" {
   acl           = "public-read"
-  bucket_prefix = "${replace(local.full_name, " ", "-")}-static"
+  bucket_prefix = "${lower(replace(local.full_name, " ", "-"))}-static"
   force_destroy = true
   region        = "${var.aws_region}"
 
