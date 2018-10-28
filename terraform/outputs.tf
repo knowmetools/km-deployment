@@ -1,18 +1,22 @@
-output "database_admin_password" {
-  sensitive = true
-  value     = "${random_string.db_admin_password.result}"
-}
-
-output "database_admin_user" {
-  value = "${var.database_admin_user}"
-}
-
 output "database_host" {
   value = "${aws_db_instance.database.address}"
 }
 
+output "database_name" {
+  value = "${aws_db_instance.database.name}"
+}
+
+output "database_password" {
+  sensitive = true
+  value     = "${aws_db_instance.database.password}"
+}
+
 output "database_port" {
   value = "${aws_db_instance.database.port}"
+}
+
+output "database_user" {
+  value = "${var.application_db_user}"
 }
 
 output "webserver_domain" {

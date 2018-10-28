@@ -3,9 +3,19 @@ variable "application_name" {
   description = "The name of the application."
 }
 
+variable "application_db_user" {
+  default     = "app_db_user"
+  description = "The name of the database user that the app connects as."
+}
+
 variable "aws_region" {
   default     = "us-east-1"
   description = "The AWS region to provision infrastructure in."
+}
+
+variable "database_admin_user" {
+  default     = "dbadmin"
+  description = "The name of the master user account on the database."
 }
 
 variable "database_backup_window" {
@@ -33,9 +43,9 @@ variable "database_storage" {
   description = "The amount of storage (GB) to allocate for the database."
 }
 
-variable "database_admin_user" {
-  default     = "dbadmin"
-  description = "The name of the master user account on the database."
+variable "database_user" {
+  default     = "app_db_user"
+  description = "The name of the database user that the application connects as."
 }
 
 variable "domain" {

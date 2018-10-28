@@ -13,6 +13,15 @@ provider "aws" {
   version = "~> 1.41"
 }
 
+provider "postgresql" {
+  database = "${aws_db_instance.database.name}"
+  host     = "${aws_db_instance.database.address}"
+  password = "${aws_db_instance.database.password}"
+  port     = "${aws_db_instance.database.port}"
+  username = "${aws_db_instance.database.username}"
+  version  = "~> 0.1"
+}
+
 provider "random" {
   version = "~> 2.0"
 }
@@ -32,6 +41,8 @@ locals {
   }
 }
 
+data "aws_caller_identity" "current" {}
+
 data "aws_ami" "ubuntu" {
   most_recent = true
 
@@ -46,6 +57,17 @@ data "aws_ami" "ubuntu" {
   }
 
   owners = ["099720109477"] # Canonical
+}
+
+data "aws_iam_policy_document" "instance-assume-role-policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
 }
 
 data "aws_route53_zone" "main" {
@@ -70,6 +92,7 @@ resource "aws_db_instance" "database" {
   name                                = "${var.database_name}"
   password                            = "${random_string.db_admin_password.result}"
   port                                = "${var.database_port}"
+  publicly_accessible                 = true
   username                            = "${var.database_admin_user}"
   vpc_security_group_ids              = ["${aws_security_group.db.id}"]
 
@@ -83,6 +106,7 @@ resource "aws_db_instance" "database" {
 
 resource "aws_instance" "webserver" {
   ami                    = "${data.aws_ami.ubuntu.id}"
+  iam_instance_profile   = "${aws_iam_instance_profile.web.name}"
   instance_type          = "${var.webserver_instance_type}"
   user_data              = "${data.template_file.web_user_data.rendered}"
   vpc_security_group_ids = ["${aws_security_group.web.id}"]
@@ -94,6 +118,27 @@ resource "aws_instance" "webserver" {
       "Role", "Webserver"
     )
   )}"
+}
+
+################################################################################
+#                                 Static Files                                 #
+################################################################################
+
+resource "aws_s3_bucket" "static" {
+  acl    = "public-read"
+  region = "${var.aws_region}"
+
+  tags = "${merge(
+    local.base_tags,
+    map(
+        "Name", "${local.full_name} Static Files"
+    )
+  )}"
+
+  cors_rule {
+    allowed_methods = ["GET"]
+    allowed_origins = ["*"]
+  }
 }
 
 ################################################################################
@@ -121,15 +166,26 @@ resource "aws_security_group" "web" {
 # Database Rules
 
 resource "aws_security_group_rule" "db_ingress" {
-  from_port                = "${var.database_port}"
-  protocol                 = "tcp"
-  security_group_id        = "${aws_security_group.db.id}"
-  source_security_group_id = "${aws_security_group.web.id}"
-  to_port                  = "${var.database_port}"
-  type                     = "ingress"
+  cidr_blocks       = ["0.0.0.0/0"]
+  from_port         = "${var.database_port}"
+  protocol          = "tcp"
+  security_group_id = "${aws_security_group.db.id}"
+
+  //  source_security_group_id = "${aws_security_group.web.id}"
+  to_port = "${var.database_port}"
+  type    = "ingress"
 }
 
 # Webserver Rules
+
+resource "aws_security_group_rule" "web_database" {
+  from_port                = "${var.database_port}"
+  protocol                 = "tcp"
+  security_group_id        = "${aws_security_group.web.id}"
+  source_security_group_id = "${aws_security_group.db.id}"
+  to_port                  = "${var.database_port}"
+  type                     = "egress"
+}
 
 resource "aws_security_group_rule" "web_out" {
   count = "${length(var.webserver_sg_rules)}"
@@ -163,6 +219,16 @@ resource "aws_security_group_rule" "web_ssh" {
 }
 
 ################################################################################
+#                              Database Resources                              #
+################################################################################
+
+resource "postgresql_role" "db_user" {
+  login    = true
+  name     = "${var.database_user}"
+  password = "${random_string.db_password.result}"
+}
+
+################################################################################
 #                                  DNS Records                                 #
 ################################################################################
 
@@ -181,4 +247,79 @@ resource "aws_route53_record" "web" {
 resource "random_string" "db_admin_password" {
   length  = 32
   special = false
+}
+
+resource "random_string" "db_password" {
+  length  = 32
+  special = false
+
+  keepers {
+    database_id = "${aws_db_instance.database.id}"
+  }
+}
+
+################################################################################
+#                                 IAM Policies                                 #
+################################################################################
+
+resource "aws_iam_instance_profile" "web" {
+  role = "${aws_iam_role.web.name}"
+}
+
+resource "aws_iam_role" "web" {
+  assume_role_policy = "${data.aws_iam_policy_document.instance-assume-role-policy.json}"
+  description        = "Role for ${var.application_name} webservers."
+}
+
+resource "aws_iam_policy" "webserver" {
+  description = "Grants webservers access to Cloudfront, SES, and static files on S3."
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ses:GetSendQuota",
+        "ses:SendEmail",
+        "ses:SendRawEmail"
+      ],
+      "Resource": [
+        "*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": [
+        "*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:ListBucketMultipartUploads",
+        "s3:ListBucketVersions"
+      ],
+      "Resource": "arn:aws:s3:::${aws_s3_bucket.static.id}"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:*Object*",
+        "s3:ListMultipartUploadParts",
+        "s3:AbortMultipartUpload"
+      ],
+      "Resource": "arn:aws:s3:::${aws_s3_bucket.static.id}\/*"
+    }
+  ]
+}
+EOF
 }

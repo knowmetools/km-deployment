@@ -4,6 +4,8 @@
   apt:
     name:
       - git
+      - libpq-dev
+      - python3-dev
       - python3-pip
     state: latest
 
@@ -30,6 +32,7 @@
     force: true
     repo: "{{ python_app_repo }}"
     version: "{{ python_app_version }}"
+  notify: "{{ python_app_source_update_handlers }}"
 
 - name: Install python dependencies
   become: yes
