@@ -14,3 +14,4 @@
     mode: 0400
     owner: "{{ app_config_user }}"
     src: environment.j2
+  notify: "{{ app_config_env_file_handlers }}"

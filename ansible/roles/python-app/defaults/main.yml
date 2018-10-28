@@ -1,10 +1,7 @@
 ---
 python_app_name: app
-
 python_app_version: master
-
 python_app_root: /opt/{{ python_app_name }}
-
 python_app_user: root
 
 # The names of the handlers to notify when the source code changes

@@ -21,3 +21,5 @@
     - python-app
     - django
     - gunicorn
+    - letsencrypt
+    - nginx

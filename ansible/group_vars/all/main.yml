@@ -12,8 +12,9 @@ users: "{
 python_app_name: km-api
 python_app_repo: https://github.com/knowmetools/km-api
 python_app_version: develop
-
 python_app_user: "{{ gunicorn_user }}"
+python_app_source_update_handlers:
+  - gunicorn reload
 
 
 django_project_root: "{{ python_app_root }}/km_api"
@@ -30,6 +31,8 @@ django_env:
   DJANGO_DB_PORT: "{{ db_port }}"
   DJANGO_DB_USER: "{{ db_user }}"
 
+  DJANGO_HTTPS: True
+
   DJANGO_EMAIL_VERIFICATION_URL: https://app.knowmetools/verify-email/{key}
   DJANGO_PASSWORD_RESET_URL: https://app.knowmetools/reset-password/{key}
 
@@ -43,6 +46,8 @@ django_env:
 
 app_config_dir: /etc/km-api
 app_config_env: "{{ django_env }}"
+app_config_env_file_handlers:
+  - gunicorn reload
 app_config_user: "{{ gunicorn_user }}"
 
 
@@ -50,3 +55,13 @@ gunicorn_application: km_api.wsgi:application
 gunicorn_env_file: "{{ app_config_env_file }}"
 gunicorn_venv: "{{ python_app_venv }}"
 gunicorn_working_directory: "{{ django_project_root }}"
+
+
+letsencrypt_domain: "{{ inventory_hostname }}"
+letsencrypt_email: tech@knowmetools.com
+
+
+nginx_certificate: "{{ letsencrypt_cert_dir }}/fullchain.pem"
+nginx_certificate_key: "{{ letsencrypt_cert_dir }}/privkey.pem"
+nginx_dhparam: "{{ letsencrypt_dhparam }}"
+nginx_proxy_socket: "{{ gunicorn_socket }}"

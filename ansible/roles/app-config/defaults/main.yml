@@ -2,4 +2,5 @@
 app_config_dir: /etc/app
 app_config_env: {}
 app_config_env_file: "{{ app_config_dir }}/environment"
+app_config_env_file_handlers: []
 app_config_user: root
