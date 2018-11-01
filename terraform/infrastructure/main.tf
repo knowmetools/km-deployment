@@ -2,24 +2,15 @@ terraform {
   backend "s3" {
     bucket               = "km-tf-state"
     dynamodb_table       = "terraformLock"
-    key                  = "know-me-api"
+    key                  = "know-me-api/infrastructure"
     region               = "us-east-1"
-    workspace_key_prefix = "know-me-api"
+    workspace_key_prefix = "know-me-api/infrastructure"
   }
 }
 
 provider "aws" {
   region  = "${var.aws_region}"
   version = "~> 1.41"
-}
-
-provider "postgresql" {
-  database = "${aws_db_instance.database.name}"
-  host     = "${aws_db_instance.database.address}"
-  password = "${aws_db_instance.database.password}"
-  port     = "${aws_db_instance.database.port}"
-  username = "${aws_db_instance.database.username}"
-  version  = "~> 0.1"
 }
 
 provider "random" {
@@ -87,6 +78,7 @@ resource "aws_db_instance" "database" {
   allow_major_version_upgrade         = false
   backup_retention_period             = "${var.database_backup_window}"
   engine                              = "postgres"
+  final_snapshot_identifier           = "${lower(replace(local.full_name, " ", "-"))}-final"
   iam_database_authentication_enabled = true
   instance_class                      = "${var.database_instance_type}"
   name                                = "${var.database_name}"
@@ -218,16 +210,6 @@ resource "aws_security_group_rule" "web_ssh" {
   security_group_id = "${aws_security_group.web.id}"
   to_port           = 22
   type              = "ingress"
-}
-
-################################################################################
-#                              Database Resources                              #
-################################################################################
-
-resource "postgresql_role" "db_user" {
-  login    = true
-  name     = "${var.database_user}"
-  password = "${random_string.db_password.result}"
 }
 
 ################################################################################

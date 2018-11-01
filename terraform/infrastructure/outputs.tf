@@ -2,6 +2,16 @@ output "aws_region" {
   value = "${var.aws_region}"
 }
 
+output "database_admin_password" {
+  sensitive = true
+  value     = "${aws_db_instance.database.password}"
+}
+
+output "database_admin_user" {
+  sensitive = true
+  value     = "${aws_db_instance.database.username}"
+}
+
 output "database_host" {
   value = "${aws_db_instance.database.address}"
 }
@@ -12,7 +22,7 @@ output "database_name" {
 
 output "database_password" {
   sensitive = true
-  value     = "${postgresql_role.db_user.password}"
+  value     = "${random_string.db_password.result}"
 }
 
 output "database_port" {

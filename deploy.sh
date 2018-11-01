@@ -5,11 +5,10 @@ set -o pipefail
 
 usage() {
     echo
-    echo "Usage: deploy.sh <terraform-dir> <terraform-workspace> <ansible-dir>"
+    echo "Usage: deploy.sh <deploy-dir> <terraform-workspace> <ansible-dir>"
     echo
-    echo "terraform-dir       - The path to the directory containing the project's Terraform configuration."
+    echo "deploy-dir          - The path to the directory containing the deployment configuration."
     echo "terraform-workspace - The name of the Terraform workspace to use."
-    echo "ansible-dir         - The path to the directory containing the project's Ansible configuration."
     echo
 }
 
@@ -19,13 +18,13 @@ usage() {
 
 if [ -z ${1+x} ]
 then
-    echo "No Terraform directory specified."
+    echo "No deploy directory specified."
     usage
 
     exit 1
 fi
 
-TF_DIR=$1
+DEPLOY_DIR=$1
 shift
 
 if [ -z ${1+x} ]
@@ -40,41 +39,56 @@ fi
 export TF_WORKSPACE=$1
 shift
 
-if [ -z ${1+x} ]
-then
-    echo "No Ansible directory specified."
-    usage
-
-    exit 1
-fi
-
-ANSIBLE_DIR=$1
-shift
+TF_DB_DIR=${DEPLOY_DIR}/terraform/database
+TF_INFRA_DIR=${DEPLOY_DIR}/terraform/infrastructure
+ANSIBLE_DIR=${DEPLOY_DIR}/ansible
 
 ###########################################
 # Provision Infrastructure with Terraform #
 ###########################################
 
 # Initialize Terraform
-echo "Initializing Terraform..."
-(cd ${TF_DIR}; terraform init)
+echo "Initializing Terraform for infrastructure..."
+(cd ${TF_INFRA_DIR}; terraform init)
 echo "Done."
 echo
 
 # Build infrastructure
 echo "Provisioning Infrastructure..."
 echo
-(cd ${TF_DIR}; terraform apply -auto-approve)
+(cd ${TF_INFRA_DIR}; terraform apply -auto-approve)
 echo
 echo "Done."
 echo
+
+#####################################
+# Provision Database with Terraform #
+#####################################
+
+# Initialize Terraform
+echo "Initializing Terraform for database..."
+(cd ${TF_DB_DIR}; terraform init)
+echo "Done."
+echo
+
+# Build infrastructure
+echo "Provisioning database..."
+echo
+(cd ${TF_DB_DIR}; terraform apply -auto-approve)
+echo
+echo "Done."
+echo
+
+###############################
+# Parse Deployment Parameters #
+###############################
 
 echo "Obtaining Terraform outputs..."
-TERRAFORM_OUTPUTS=$(cd ${TF_DIR}; terraform output -json)
+TERRAFORM_OUTPUTS=$(cd ${TF_INFRA_DIR}; terraform output -json)
 echo "Done."
 echo
 
-echo "Parsing data from Terraform oututs..."
+echo "Parsing data from Terraform outputs..."
 AWS_REGION=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .aws_region.value)
 DB_HOST=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .database_host.value)
 DB_NAME=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .database_name.value)
