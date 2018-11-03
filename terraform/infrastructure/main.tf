@@ -24,7 +24,7 @@ provider "template" {
 locals {
   env       = "${terraform.workspace}"
   full_name = "${var.application_name} ${local.env}"
-  subdomain = "${terraform.workspace == "production" ? "new-api" : "${terraform.workspace}.new-api"}"
+  subdomain = "${terraform.workspace == "production" ? "toolbox" : "${terraform.workspace}.toolbox"}"
 
   base_tags = {
     Application = "${var.application_name}"
