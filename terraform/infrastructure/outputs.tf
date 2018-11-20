@@ -42,6 +42,14 @@ output "static_files_bucket" {
   value = "${aws_s3_bucket.static.id}"
 }
 
+output "webapp_s3_bucket" {
+  value = "${module.webapp.s3_bucket}"
+}
+
+output "webapp_url" {
+  value = "${module.webapp.cloudfront_url}"
+}
+
 output "webserver_domain" {
   value = "${aws_route53_record.web.fqdn}"
 }

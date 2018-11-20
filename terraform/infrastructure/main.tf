@@ -22,14 +22,20 @@ provider "template" {
 }
 
 locals {
-  env       = "${terraform.workspace}"
-  full_name = "${var.application_name} ${local.env}"
-  subdomain = "${terraform.workspace == "production" ? "toolbox" : "${terraform.workspace}.toolbox"}"
+  env            = "${terraform.workspace}"
+  full_name      = "${var.application_name} ${local.env}"
+  full_name_slug = "${lower(replace(local.full_name, " ", "-"))}"
+  api_subdomain  = "${terraform.workspace == "production" ? "toolbox" : "${terraform.workspace}.toolbox"}"
+  web_domain     = "${terraform.workspace == "production" ? "app.${var.domain}" : "${terraform.workspace}.app.${var.domain}"}"
 
   base_tags = {
     Application = "${var.application_name}"
     Environment = "${local.env}"
   }
+}
+
+data "aws_acm_certificate" "webapp" {
+  domain = "app.knowmetools.com"
 }
 
 data "aws_caller_identity" "current" {}
@@ -70,6 +76,19 @@ data "template_file" "web_user_data" {
 }
 
 ################################################################################
+#                                   Web App                                    #
+################################################################################
+
+module "webapp" {
+  source = "./cloudfront-dist"
+
+  acm_certificate_arn = "${data.aws_acm_certificate.webapp.arn}"
+  application         = "Know Me Webapp ${terraform.workspace}"
+  domain              = "${local.web_domain}"
+  domain_zone_id      = "${data.aws_route53_zone.main.id}"
+}
+
+################################################################################
 #                                    Servers                                   #
 ################################################################################
 
@@ -78,7 +97,7 @@ resource "aws_db_instance" "database" {
   allow_major_version_upgrade         = false
   backup_retention_period             = "${var.database_backup_window}"
   engine                              = "postgres"
-  final_snapshot_identifier           = "${lower(replace(local.full_name, " ", "-"))}-final"
+  final_snapshot_identifier           = "${local.full_name_slug}-final"
   iam_database_authentication_enabled = true
   instance_class                      = "${var.database_instance_type}"
   name                                = "${var.database_name}"
@@ -118,7 +137,7 @@ resource "aws_instance" "webserver" {
 
 resource "aws_s3_bucket" "static" {
   acl           = "public-read"
-  bucket_prefix = "${lower(replace(local.full_name, " ", "-"))}-static"
+  bucket_prefix = "${local.full_name_slug}-static"
   force_destroy = true
   region        = "${var.aws_region}"
 
@@ -217,7 +236,7 @@ resource "aws_security_group_rule" "web_ssh" {
 ################################################################################
 
 resource "aws_route53_record" "web" {
-  name    = "${local.subdomain}"
+  name    = "${local.api_subdomain}"
   type    = "A"
   records = ["${aws_instance.webserver.public_ip}"]
   ttl     = 60

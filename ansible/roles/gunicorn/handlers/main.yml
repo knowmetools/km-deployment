@@ -14,3 +14,9 @@
   systemd:
     name: gunicorn.service
     state: reloaded
+
+- name: gunicorn restart
+  become: true
+  systemd:
+    name: gunicorn.service
+    state: restarted
