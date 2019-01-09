@@ -261,6 +261,14 @@ resource "random_string" "db_password" {
   }
 }
 
+resource "random_string" "django_admin_password" {
+  length = 32
+
+  keepers {
+    instance_id = "${aws_instance.webserver.id}"
+  }
+}
+
 resource "random_string" "django_secret_key" {
   length = 50
 

@@ -16,3 +16,12 @@
     app_path: "{{ django_project_root }}"
     command: collectstatic
     virtualenv: "{{ django_venv }}"
+
+- name: Create admin user
+  become: true
+  become_user: "{{ django_user }}"
+  environment: "{{ django_env | combine(django_admin_env) }}"
+  django_manage:
+    app_path: "{{ django_project_root }}"
+    command: createadmin
+    virtualenv: "{{ django_venv }}"

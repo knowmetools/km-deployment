@@ -33,6 +33,11 @@ output "database_user" {
   value = "${var.application_db_user}"
 }
 
+output "django_admin_password" {
+  sensitive = true
+  value     = "${random_string.db_admin_password.result}"
+}
+
 output "django_secret_key" {
   sensitive = true
   value     = "${random_string.django_secret_key.result}"
