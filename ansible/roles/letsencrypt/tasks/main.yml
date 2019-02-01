@@ -14,6 +14,7 @@
   become: true
   apt:
     name: python-certbot-nginx
+    state: latest
 
 # The certificate process expects NGINX to already be running.
 - name: Install NGINX
