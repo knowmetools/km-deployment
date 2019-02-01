@@ -13,6 +13,10 @@ provider "aws" {
   version = "~> 1.41"
 }
 
+provider "null" {
+  version = "~> 2.0"
+}
+
 provider "random" {
   version = "~> 2.0"
 }
@@ -26,6 +30,7 @@ locals {
   full_name      = "${var.application_name} ${local.env}"
   full_name_slug = "${lower(replace(local.full_name, " ", "-"))}"
   api_subdomain  = "${terraform.workspace == "production" ? "toolbox" : "${terraform.workspace}.toolbox"}"
+  api_domain     = "${local.api_subdomain}.${var.domain}"
   web_domain     = "${terraform.workspace == "production" ? "app.${var.domain}" : "${terraform.workspace}.app.${var.domain}"}"
 
   base_tags = {
@@ -86,6 +91,16 @@ module "webapp" {
   application         = "Know Me Webapp ${terraform.workspace}"
   domain              = "${local.web_domain}"
   domain_zone_id      = "${data.aws_route53_zone.main.id}"
+}
+
+module "webapp_build" {
+  source = "./webapp-codebuild"
+
+  api_root  = "https://${local.api_domain}"
+  app_slug  = "${local.full_name_slug}"
+  base_tags = "${local.base_tags}"
+  s3_arn    = "${module.webapp.s3_bucket_arn}"
+  s3_bucket = "${module.webapp.s3_bucket}"
 }
 
 ################################################################################

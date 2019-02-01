@@ -98,7 +98,6 @@ DB_USER=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .database_user.value)
 DJANGO_ADMIN_PASSWORD=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .django_admin_password.value)
 DJANGO_SECRET_KEY=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .django_secret_key.value)
 STATIC_FILES_BUCKET=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .static_files_bucket.value)
-WEBAPP_S3_BUCKET=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .webapp_s3_bucket.value)
 WEBAPP_URL=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .webapp_url.value)
 WEBSERVER_DOMAIN=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .webserver_domain.value)
 echo "Done."
@@ -114,7 +113,6 @@ echo "    Database User: ${DB_USER}"
 echo "    Django Admin Password: <sensitive>"
 echo "    Django Secret Key: <sensitive>"
 echo "    Static Files Bucket: ${STATIC_FILES_BUCKET}"
-echo "    Webapp S3 Bucket: ${WEBAPP_S3_BUCKET}"
 echo "    Webapp URL: ${WEBAPP_URL}"
 echo "    Webserver Domain: ${WEBSERVER_DOMAIN}"
 echo
@@ -158,39 +156,6 @@ echo
         --extra-vars "webapp_url='${WEBAPP_URL}'" \
         deploy.yml
 )
-
-#################
-# Deploy Webapp #
-#################
-
-echo "Deploying webapp..."
-echo
-
-echo "Cloning source..."
-web_root="${tmpdir}/web"
-git clone https://github.com/knowmetools/km-web.git ${web_root}
-echo "Cloned app source."
-echo
-
-echo "Building app..."
-(
-    cd ${web_root}
-
-    yarn install
-    REACT_APP_API_ROOT=https://${WEBSERVER_DOMAIN} yarn build
-)
-echo "Finished building app."
-echo
-
-echo "Uploading build to S3..."
-aws s3 sync --delete ${web_root}/build s3://${WEBAPP_S3_BUCKET}
-echo "Finished upload."
-echo
-
-echo
-echo "Successfully deployed web app to S3."
-echo
-echo
 
 ###########
 # Cleanup #
