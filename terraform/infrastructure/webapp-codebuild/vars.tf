@@ -12,15 +12,15 @@ variable "base_tags" {
   type        = "map"
 }
 
-variable "s3_arn" {
-  description = "The ARN of the S3 bucket that the webapp is uploaded to."
-}
-
-variable "s3_bucket" {
-  description = "The name of the S3 bucket that the webapp is uploaded to."
+variable "deploy_bucket" {
+  description = "The name of the S3 bucket to deploy the web app to."
 }
 
 variable "source_branch" {
   default     = "master"
   description = "The name of the branch to listen to changes on."
+}
+
+variable "source_repository" {
+  description = "The name (without organization) of the GitHub repository containing the source for the web app."
 }

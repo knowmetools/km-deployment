@@ -13,6 +13,11 @@ provider "aws" {
   version = "~> 1.41"
 }
 
+provider "github" {
+  organization = "knowmetools"
+  version      = "~> 1.3"
+}
+
 provider "null" {
   version = "~> 2.0"
 }
@@ -96,11 +101,11 @@ module "webapp" {
 module "webapp_build" {
   source = "./webapp-codebuild"
 
-  api_root  = "https://${local.api_domain}"
-  app_slug  = "${local.full_name_slug}"
-  base_tags = "${local.base_tags}"
-  s3_arn    = "${module.webapp.s3_bucket_arn}"
-  s3_bucket = "${module.webapp.s3_bucket}"
+  api_root          = "https://${local.api_domain}"
+  app_slug          = "${local.full_name_slug}"
+  base_tags         = "${local.base_tags}"
+  deploy_bucket     = "${module.webapp.s3_bucket}"
+  source_repository = "km-web"
 }
 
 ################################################################################
