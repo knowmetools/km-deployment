@@ -144,6 +144,8 @@ echo
 
     ansible-playbook \
         --inventory ${inventory_file} \
+        --extra-vars "apple_receipt_validation_endpoint='${APPLE_RECEIPT_VALIDATION_ENDPOINT:-https://sandbox.itunes.apple.com/verifyReceipt}'" \
+        --extra-vars "apple_shared_secret='${APPLE_SHARED_SECRET}'" \
         --extra-vars "aws_region='${AWS_REGION}'" \
         --extra-vars "db_host='${DB_HOST}'" \
         --extra-vars "db_name='${DB_NAME}'" \

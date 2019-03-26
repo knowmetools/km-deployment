@@ -23,6 +23,11 @@ django_venv: "{{ python_app_venv }}"
 
 django_env:
   DJANGO_ALLOWED_HOSTS: "{{ inventory_hostname }}"
+
+  DJANGO_APPLE_PRODUCT_CODES_KNOW_ME_PREMIUM: "com.knowmetools.knowmetoolbox.premium.monthly,com.knowmetools.knowmetoolbox.premium.annually"
+  DJANGO_APPLE_RECEIPT_VALIDATION_ENDPOINT: "{{ apple_receipt_validation_endpoint }}"
+  DJANGO_APPLE_SHARED_SECRET: "{{ apple_shared_secret }}"
+
   DJANGO_AWS_REGION: "{{ aws_region }}"
 
   DJANGO_DB_HOST: "{{ db_host }}"
