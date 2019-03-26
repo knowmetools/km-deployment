@@ -8,9 +8,13 @@ terraform {
   }
 }
 
+provider "archive" {
+  version = "~> 1.1"
+}
+
 provider "aws" {
   region  = "${var.aws_region}"
-  version = "~> 1.41"
+  version = "~> 1.59"
 }
 
 provider "github" {
@@ -106,6 +110,16 @@ module "webapp_build" {
   base_tags         = "${local.base_tags}"
   deploy_bucket     = "${module.webapp.s3_bucket}"
   source_repository = "km-web"
+}
+
+################################################################################
+#                              API Docker Cluster                              #
+################################################################################
+
+module "api_cluster" {
+  source = "api-cluster"
+
+  app_slug = "km-${local.env}-api"
 }
 
 ################################################################################

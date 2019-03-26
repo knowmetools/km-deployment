@@ -1,0 +1,44 @@
+{
+  "containerDefinitions": [
+    {
+      "name": "${container_name}",
+      "image": "<${image_placeholder}>",
+      "cpu": 0,
+      "memoryReservation": 128,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "DJANGO_DEBUG",
+          "value": "True"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "${app_slug}",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs-api-web"
+        }
+      }
+    }
+  ],
+  "family": "api",
+  "executionRoleArn": "${execution_role_arn}",
+  "networkMode": "awsvpc",
+  "compatibilities": [
+    "EC2",
+    "FARGATE"
+  ],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512"
+}
