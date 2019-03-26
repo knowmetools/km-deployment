@@ -22,7 +22,7 @@
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "${app_slug}",
+          "awslogs-group": "${log_group}",
           "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs-api-web"
         }

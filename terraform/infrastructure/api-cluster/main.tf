@@ -81,10 +81,10 @@ data "template_file" "task_definition_deploy" {
   template = "${file("${path.module}/templates/taskdef.json")}"
 
   vars {
-    app_slug           = "${var.app_slug}"
     container_name     = "${local.api_web_container_name}"
     execution_role_arn = "${aws_iam_role.api_task_execution_role.arn}"
     image_placeholder  = "${local.image_placeholder}"
+    log_group          = "${aws_cloudwatch_log_group.api.name}"
   }
 }
 
@@ -203,6 +203,10 @@ resource "aws_security_group" "all" {
     protocol    = "-1"
     to_port     = 0
   }
+}
+
+resource "aws_cloudwatch_log_group" "api" {
+  name = "${var.app_slug}"
 }
 
 ################################################################################
