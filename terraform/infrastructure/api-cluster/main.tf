@@ -188,6 +188,11 @@ resource "aws_lb_target_group" "blue" {
   protocol    = "HTTP"
   target_type = "ip"
   vpc_id      = "${data.aws_vpc.default.id}"
+
+  health_check {
+    matcher = "200-499"
+    path    = "/"
+  }
 }
 
 resource "aws_lb_target_group" "green" {
@@ -196,6 +201,11 @@ resource "aws_lb_target_group" "green" {
   protocol    = "HTTP"
   target_type = "ip"
   vpc_id      = "${data.aws_vpc.default.id}"
+
+  health_check {
+    matcher = "200-499"
+    path    = "/"
+  }
 }
 
 resource "aws_security_group" "all" {
