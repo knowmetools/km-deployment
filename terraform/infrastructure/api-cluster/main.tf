@@ -24,6 +24,8 @@ data "aws_iam_policy_document" "ecs_assume_role_policy" {
   }
 }
 
+data "aws_region" "current" {}
+
 data "aws_subnet_ids" "default" {
   vpc_id = "${data.aws_vpc.default.id}"
 }
@@ -81,10 +83,17 @@ data "template_file" "task_definition_deploy" {
   template = "${file("${path.module}/templates/taskdef.json")}"
 
   vars {
-    container_name     = "${local.api_web_container_name}"
-    execution_role_arn = "${aws_iam_role.api_task_execution_role.arn}"
-    image_placeholder  = "${local.image_placeholder}"
-    log_group          = "${aws_cloudwatch_log_group.api.name}"
+    aws_region          = "${data.aws_region.current.name}"
+    container_name      = "${local.api_web_container_name}"
+    db_host             = "${var.db_host}"
+    db_name             = "${var.db_name}"
+    db_password_ssm_arn = "${var.db_password_ssm_arn}"
+    db_port             = "${var.db_port}"
+    db_user             = "${var.db_user}"
+    domain_name         = "${var.domain_name}"
+    execution_role_arn  = "${aws_iam_role.api_task_execution_role.arn}"
+    image_placeholder   = "${local.image_placeholder}"
+    log_group           = "${aws_cloudwatch_log_group.api.name}"
   }
 }
 
@@ -410,7 +419,7 @@ resource "aws_s3_bucket_object" "api_deploy_params" {
 ################################################################################
 
 resource "aws_iam_role" "codepipeline" {
-  name = "${var.app_slug}-web-app-code-pipeline"
+  name = "${var.app_slug}-api-code-pipeline"
 
   assume_role_policy = <<EOF
 {
@@ -428,9 +437,13 @@ resource "aws_iam_role" "codepipeline" {
 EOF
 }
 
-resource "aws_iam_role_policy" "codepipeline_policy" {
-  name = "${var.app_slug}-web-app-code-pipeline-artifacts"
-  role = "${aws_iam_role.codepipeline.id}"
+resource "aws_iam_role_policy_attachment" "codepipeline_policy" {
+  policy_arn = "${aws_iam_policy.codepipeline_policy.arn}"
+  role       = "${aws_iam_role.codepipeline.name}"
+}
+
+resource "aws_iam_policy" "codepipeline_policy" {
+  name = "${var.app_slug}-api-code-pipeline-artifacts"
 
   policy = <<EOF
 {
@@ -470,7 +483,7 @@ resource "aws_iam_role_policy_attachment" "codepipeline_ecs_deploy" {
 }
 
 resource "aws_iam_role_policy_attachment" "codepipeline_ecs_deploy2" {
-  policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployFullAccess"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
   role       = "${aws_iam_role.codepipeline.name}"
 }
 
@@ -482,6 +495,32 @@ resource "aws_iam_role" "api_task_execution_role" {
 resource "aws_iam_role_policy_attachment" "AWSECSRole" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
   role       = "${aws_iam_role.api_task_execution_role.name}"
+}
+
+resource "aws_iam_role_policy_attachment" "task_ssm_access" {
+  policy_arn = "${aws_iam_policy.task_ssm_access.arn}"
+  role       = "${aws_iam_role.api_task_execution_role.name}"
+}
+
+resource "aws_iam_policy" "task_ssm_access" {
+  name = "${var.app_slug}-ecs-api-task-execution"
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParametersByPath",
+        "ssm:GetParameters",
+        "ssm:GetParameter"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+EOF
 }
 
 resource "aws_iam_role" "api_deploy" {

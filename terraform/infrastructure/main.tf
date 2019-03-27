@@ -119,7 +119,14 @@ module "webapp_build" {
 module "api_cluster" {
   source = "api-cluster"
 
-  app_slug = "km-${local.env}-api"
+  app_slug            = "km-${local.env}-api"
+  db_host             = "${aws_db_instance.database.address}"
+  db_name             = "${var.database_name}"
+  db_password_ssm_arn = "${aws_ssm_parameter.db_password.arn}"
+  db_port             = "${aws_db_instance.database.port}"
+  db_user             = "${var.database_user}"
+  domain_name         = "${local.api_domain}"
+  environment         = "${local.env}"
 }
 
 ################################################################################
@@ -309,6 +316,12 @@ resource "random_string" "django_secret_key" {
   keepers {
     instance_id = "${aws_instance.webserver.id}"
   }
+}
+
+resource "aws_ssm_parameter" "db_password" {
+  name  = "/km-api/${local.env}/db/password"
+  type  = "SecureString"
+  value = "${random_string.db_password.result}"
 }
 
 ################################################################################
