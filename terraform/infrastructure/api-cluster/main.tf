@@ -38,7 +38,8 @@ data "template_file" "appspec" {
   template = "${file("${path.module}/templates/appspec.yml")}"
 
   vars {
-    container_name = "${local.api_web_container_name}"
+    before_install_hook = "${module.migrate_hook.function_name}"
+    container_name      = "${local.api_web_container_name}"
   }
 }
 
@@ -85,12 +86,8 @@ data "template_file" "task_definition_deploy" {
   vars {
     aws_region          = "${data.aws_region.current.name}"
     container_name      = "${local.api_web_container_name}"
-    db_host             = "${var.db_host}"
-    db_name             = "${var.db_name}"
     db_password_ssm_arn = "${var.db_password_ssm_arn}"
-    db_port             = "${var.db_port}"
-    db_user             = "${var.db_user}"
-    domain_name         = "${var.domain_name}"
+    environment         = "${jsonencode(local.django_env)}"
     execution_role_arn  = "${aws_iam_role.api_task_execution_role.arn}"
     image_placeholder   = "${local.image_placeholder}"
     log_group           = "${aws_cloudwatch_log_group.api.name}"
@@ -112,12 +109,70 @@ data "archive_file" "api_deploy_params" {
   }
 }
 
+data "archive_file" "lambda_source" {
+  output_path = "${path.module}/files/lambda-source.zip"
+  type        = "zip"
+
+  source {
+    content  = "${file("${path.module}/../../../scripts/api-migrate/lambda_handler.py")}"
+    filename = "lambda_handler.py"
+  }
+}
+
 locals {
   api_web_container_name = "api-web-server"
   appspec_key            = "appspec.yaml"
   deploy_params_key      = "deploy-params.zip"
   image_placeholder      = "IMAGE"
   task_definition_key    = "taskdef.json"
+
+  django_env = [
+    {
+      name  = "DJANGO_ALLOWED_HOSTS"
+      value = "${var.domain_name}"
+    },
+    {
+      name  = "DJANGO_AWS_REGION"
+      value = "${data.aws_region.current.name}"
+    },
+    {
+      name  = "DJANGO_DB_HOST"
+      value = "${var.db_host}"
+    },
+    {
+      name  = "DJANGO_DB_NAME"
+      value = "${var.db_name}"
+    },
+    {
+      name  = "DJANGO_DB_PORT"
+      value = "${var.db_port}"
+    },
+    {
+      name  = "DJANGO_DB_USER"
+      value = "${var.db_user}"
+    },
+    {
+      name  = "DJANGO_DEBUG"
+      value = "True"
+    },
+  ]
+}
+
+module "migrate_hook" {
+  source = "../lambda"
+
+  function_name  = "${var.app_slug}-migrate-hook"
+  handler        = "lambda_handler.handler"
+  runtime        = "python3.7"
+  source_archive = "${data.archive_file.lambda_source.output_path}"
+  timeout        = 120
+
+  environment_variables = {
+    CLUSTER         = "${aws_ecs_cluster.main.name}"
+    CONTAINER_NAME  = "${local.api_web_container_name}"
+    SECURITY_GROUPS = "${aws_security_group.all.id}"
+    SUBNETS         = "${join(",", data.aws_subnet_ids.default.ids)}"
+  }
 }
 
 resource "aws_ecs_cluster" "main" {
@@ -153,6 +208,12 @@ resource "aws_ecs_service" "api" {
     assign_public_ip = true
     security_groups  = ["${aws_security_group.all.id}"]
     subnets          = ["${data.aws_subnet_ids.default.ids}"]
+  }
+
+  lifecycle {
+    # Ignore changes to the task definition since deployments will have
+    # overwritten this value to a newer task definition.
+    ignore_changes = ["task_definition"]
   }
 }
 
@@ -633,4 +694,59 @@ POLICY
 resource "aws_iam_role_policy_attachment" "codebuild_ecs" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
   role       = "${aws_iam_role.codebuild.name}"
+}
+
+################################################################################
+#                              Lambda Permissions                              #
+################################################################################
+
+resource "aws_iam_role_policy_attachment" "lambda" {
+  policy_arn = "${aws_iam_policy.lambda.arn}"
+  role       = "${module.migrate_hook.iam_role}"
+}
+
+resource "aws_iam_policy" "lambda" {
+  name = "${var.app_slug}-lambda-migrate"
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Resource": [
+        "*"
+      ],
+      "Action": [
+        "iam:PassRole",
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "codedeploy:GetApplicationRevision",
+        "codedeploy:GetDeployment",
+        "ecs:RunTask"
+      ],
+      "Resource": [
+        "arn:aws:codedeploy:*:*:application:${aws_codedeploy_app.api.name}",
+        "arn:aws:codedeploy:*:*:deploymentgroup:${aws_codedeploy_app.api.name}/*",
+        "arn:aws:ecs:*:*:task-definition/${aws_ecs_task_definition.api.family}:*"
+      ]
+    },
+    {
+      "Sid": "VisualEditor1",
+      "Effect": "Allow",
+      "Action": [
+        "codedeploy:PutLifecycleEventHookExecutionStatus",
+        "ecs:DescribeTaskDefinition"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+EOF
 }

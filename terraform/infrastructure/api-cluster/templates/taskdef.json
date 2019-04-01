@@ -13,41 +13,12 @@
         }
       ],
       "essential": true,
-      "environment": [
-        {
-          "name": "DJANGO_ALLOWED_HOSTS",
-          "value": "${domain_name}"
-        },
-        {
-          "name": "DJANGO_AWS_REGION",
-          "value": "${aws_region}"
-        },
-        {
-          "name": "DJANGO_DB_HOST",
-          "value": "${db_host}"
-        },
-        {
-          "name": "DJANGO_DB_NAME",
-          "value": "${db_name}"
-        },
-        {
-          "name": "DJANGO_DB_PORT",
-          "value": "${db_port}"
-        },
-        {
-          "name": "DJANGO_DB_USER",
-          "value": "${db_user}"
-        },
-        {
-          "name": "DJANGO_DEBUG",
-          "value": "True"
-        }
-      ],
+      "environment": ${environment},
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "${log_group}",
-          "awslogs-region": "us-east-1",
+          "awslogs-region": "${aws_region}",
           "awslogs-stream-prefix": "ecs-api-web"
         }
       },

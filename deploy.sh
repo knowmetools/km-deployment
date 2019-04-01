@@ -41,7 +41,6 @@ shift
 
 TF_DB_DIR=${DEPLOY_DIR}/terraform/database
 TF_INFRA_DIR=${DEPLOY_DIR}/terraform/infrastructure
-ANSIBLE_DIR=${DEPLOY_DIR}/ansible
 
 ###########################################
 # Provision Infrastructure with Terraform #
@@ -78,92 +77,3 @@ echo
 echo
 echo "Done."
 echo
-
-###############################
-# Parse Deployment Parameters #
-###############################
-
-echo "Obtaining Terraform outputs..."
-TERRAFORM_OUTPUTS=$(cd ${TF_INFRA_DIR}; terraform output -json)
-echo "Done."
-echo
-
-echo "Parsing data from Terraform outputs..."
-AWS_REGION=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .aws_region.value)
-DB_HOST=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .database_host.value)
-DB_NAME=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .database_name.value)
-DB_PASSWORD=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .database_password.value)
-DB_PORT=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .database_port.value)
-DB_USER=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .database_user.value)
-DJANGO_ADMIN_PASSWORD=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .django_admin_password.value)
-DJANGO_SECRET_KEY=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .django_secret_key.value)
-STATIC_FILES_BUCKET=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .static_files_bucket.value)
-WEBAPP_URL=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .webapp_url.value)
-WEBSERVER_DOMAIN=$(echo ${TERRAFORM_OUTPUTS} | jq --raw-output .webserver_domain.value)
-echo "Done."
-echo
-
-echo "Deployment Parameters:"
-echo "    AWS Region: ${AWS_REGION}"
-echo "    Database Host: ${DB_HOST}"
-echo "    Database Name: ${DB_NAME}"
-echo "    Database Password: <sensitive>"
-echo "    Database Port: ${DB_PORT}"
-echo "    Database User: ${DB_USER}"
-echo "    Django Admin Password: <sensitive>"
-echo "    Django Secret Key: <sensitive>"
-echo "    Static Files Bucket: ${STATIC_FILES_BUCKET}"
-echo "    Webapp URL: ${WEBAPP_URL}"
-echo "    Webserver Domain: ${WEBSERVER_DOMAIN}"
-echo
-
-##############################
-# Generate Ansible Inventory #
-##############################
-
-# Generate a temporary directory to store files in
-tmpdir=$(mktemp -d "${TMPDIR:-/tmp/}$(basename $0).XXXXXXXXXXXX")
-inventory_file="${tmpdir}/inventory"
-
-cat > ${inventory_file} <<EOF
-[webservers]
-${WEBSERVER_DOMAIN}
-EOF
-
-echo "Generated inventory file:"
-echo
-cat ${inventory_file}
-echo
-
-#####################################
-# Configure Webservers with Ansible #
-#####################################
-
-(
-    cd ${ANSIBLE_DIR}
-
-    ansible-playbook \
-        --inventory ${inventory_file} \
-        --extra-vars "apple_receipt_validation_endpoint='${APPLE_RECEIPT_VALIDATION_ENDPOINT:-https://sandbox.itunes.apple.com/verifyReceipt}'" \
-        --extra-vars "apple_shared_secret='${APPLE_SHARED_SECRET}'" \
-        --extra-vars "aws_region='${AWS_REGION}'" \
-        --extra-vars "db_host='${DB_HOST}'" \
-        --extra-vars "db_name='${DB_NAME}'" \
-        --extra-vars "db_password='${DB_PASSWORD}'" \
-        --extra-vars "db_port='${DB_PORT}'" \
-        --extra-vars "db_user='${DB_USER}'" \
-        --extra-vars "django_admin_password='${DJANGO_ADMIN_PASSWORD}'" \
-        --extra-vars "django_secret_key='${DJANGO_SECRET_KEY}'" \
-        --extra-vars "static_files_bucket='${STATIC_FILES_BUCKET}'" \
-        --extra-vars "webapp_url='${WEBAPP_URL}'" \
-        deploy.yml
-)
-
-###########
-# Cleanup #
-###########
-
-rm -rf ${tmpdir}
-
-
-
