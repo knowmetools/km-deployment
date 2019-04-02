@@ -172,6 +172,13 @@ resource "aws_ecs_task_definition" "api" {
   memory                   = 512
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
+
+  lifecycle {
+    # We don't actually care about updating the container definitions
+    # because that is handled by CodeDeploy and updated outside of
+    # Terraform.
+    ignore_changes = ["container_definitions"]
+  }
 }
 
 resource "aws_lb" "api" {

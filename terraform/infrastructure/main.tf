@@ -130,6 +130,18 @@ module "api_cluster" {
       value = "${local.api_domain}"
     },
     {
+      name  = "DJANGO_APPLE_PRODUCT_CODES_KNOW_ME_PREMIUM"
+      value = "${var.apple_km_premium_product_codes}"
+    },
+    {
+      name  = "DJANGO_APPLE_RECEIPT_VALIDATION_ENDPOINT"
+      value = "${lookup(var.apple_receipt_validation_endpoints, var.apple_receipt_validation_mode)}"
+    },
+    {
+      name  = "DJANGO_APPLE_SHARED_SECRET"
+      value = "${var.apple_shared_secret}"
+    },
+    {
       name  = "DJANGO_AWS_REGION"
       value = "${var.aws_region}"
     },
