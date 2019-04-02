@@ -122,6 +122,9 @@ module "api_cluster" {
   app_slug        = "km-${local.env}-api"
   aws_region      = "${var.aws_region}"
   certificate_arn = "${data.aws_acm_certificate.api.arn}"
+  source_branch   = "${var.api_source_branch}"
+  source_owner    = "${var.github_organization}"
+  source_repo     = "${var.api_source_repo}"
 
   # Environment
   api_environment = [

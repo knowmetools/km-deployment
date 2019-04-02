@@ -1,3 +1,13 @@
+variable "api_source_branch" {
+  default     = "master"
+  description = "The branch of the API repository to deploy."
+}
+
+variable "api_source_repo" {
+  default     = "km-api"
+  description = "The name of the API GitHub repository."
+}
+
 variable "apple_km_premium_product_codes" {
   description = "A comma-separated list of product codes that grant the buyer access to Know Me premium."
 }
@@ -73,6 +83,11 @@ variable "database_user" {
 variable "domain" {
   default     = "knowmetools.com"
   description = "The root domain corresponding to a hosted zone in Route 53."
+}
+
+variable "github_organization" {
+  default     = "knowmetools"
+  description = "The GitHub user/organization that owns the GitHub repositories being deployed."
 }
 
 variable "sentry_dsn" {

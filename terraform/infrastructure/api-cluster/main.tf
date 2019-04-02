@@ -292,9 +292,9 @@ resource "aws_codepipeline" "api" {
       version          = "1"
 
       configuration {
-        Branch = "docker"
-        Owner  = "knowmetools"
-        Repo   = "km-api"
+        Branch = "${var.source_branch}"
+        Owner  = "${var.source_owner}"
+        Repo   = "${var.source_repo}"
       }
     }
 

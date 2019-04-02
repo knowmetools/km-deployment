@@ -21,3 +21,16 @@ variable "aws_region" {
 variable "certificate_arn" {
   description = "The ARN of the certificate used for HTTPS connections to the API."
 }
+
+variable "source_branch" {
+  default     = "master"
+  description = "The branch of the source GitHub repository to deploy."
+}
+
+variable "source_owner" {
+  description = "The owner (user/organization) of the source repository for the API."
+}
+
+variable "source_repo" {
+  description = "The name of the GitHub repository containing the source code for the API."
+}
