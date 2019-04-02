@@ -1,3 +1,7 @@
+output "api_url" {
+  value = "${aws_route53_record.web.fqdn}"
+}
+
 output "aws_region" {
   value = "${var.aws_region}"
 }
@@ -33,28 +37,15 @@ output "database_user" {
   value = "${var.application_db_user}"
 }
 
+output "django_admin_email" {
+  value = "${var.django_admin_email}"
+}
+
 output "django_admin_password" {
   sensitive = true
-  value     = "${random_string.db_admin_password.result}"
-}
-
-output "django_secret_key" {
-  sensitive = true
-  value     = "${random_string.django_secret_key.result}"
-}
-
-output "static_files_bucket" {
-  value = "${aws_s3_bucket.static.id}"
-}
-
-output "webapp_s3_bucket" {
-  value = "${module.webapp.s3_bucket}"
+  value     = "${random_string.django_admin_password.result}"
 }
 
 output "webapp_url" {
   value = "${module.webapp.cloudfront_url}"
-}
-
-output "webserver_domain" {
-  value = "${aws_route53_record.web.fqdn}"
 }

@@ -107,10 +107,12 @@ module "migrate_hook" {
   timeout        = 120
 
   environment_variables = {
-    CLUSTER         = "${aws_ecs_cluster.main.name}"
-    CONTAINER_NAME  = "${local.api_web_container_name}"
-    SECURITY_GROUPS = "${aws_security_group.all.id}"
-    SUBNETS         = "${join(",", data.aws_subnet_ids.default.ids)}"
+    ADMIN_EMAIL             = "${var.django_admin_email}"
+    ADMIN_PASSWORD_SSM_NAME = "${var.django_admin_password_ssm_name}"
+    CLUSTER                 = "${aws_ecs_cluster.main.name}"
+    CONTAINER_NAME          = "${local.api_web_container_name}"
+    SECURITY_GROUPS         = "${aws_security_group.all.id}"
+    SUBNETS                 = "${join(",", data.aws_subnet_ids.default.ids)}"
   }
 }
 
@@ -728,6 +730,11 @@ resource "aws_iam_policy" "lambda" {
         "ecs:DescribeTaskDefinition"
       ],
       "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "ssm:GetParameter",
+      "Resource": "arn:aws:ssm:*:*:parameter${var.django_admin_password_ssm_name}"
     }
   ]
 }

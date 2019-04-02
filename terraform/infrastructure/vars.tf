@@ -80,6 +80,11 @@ variable "database_user" {
   description = "The name of the database user that the application connects as."
 }
 
+variable "django_admin_email" {
+  default     = "admin@knowme.works"
+  description = "The email of the admin user to create."
+}
+
 variable "domain" {
   default     = "knowmetools.com"
   description = "The root domain corresponding to a hosted zone in Route 53."

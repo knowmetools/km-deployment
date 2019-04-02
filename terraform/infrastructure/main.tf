@@ -119,12 +119,14 @@ module "webapp_build" {
 module "api_cluster" {
   source = "api-cluster"
 
-  app_slug        = "km-${local.env}-api"
-  aws_region      = "${var.aws_region}"
-  certificate_arn = "${data.aws_acm_certificate.api.arn}"
-  source_branch   = "${var.api_source_branch}"
-  source_owner    = "${var.github_organization}"
-  source_repo     = "${var.api_source_repo}"
+  app_slug                       = "km-${local.env}-api"
+  aws_region                     = "${var.aws_region}"
+  certificate_arn                = "${data.aws_acm_certificate.api.arn}"
+  django_admin_email             = "${var.django_admin_email}"
+  django_admin_password_ssm_name = "${aws_ssm_parameter.django_admin_password.name}"
+  source_branch                  = "${var.api_source_branch}"
+  source_owner                   = "${var.github_organization}"
+  source_repo                    = "${var.api_source_repo}"
 
   # Environment
   api_environment = [
@@ -387,6 +389,12 @@ resource "aws_ssm_parameter" "db_password" {
   name  = "/km-api/${local.env}/db/password"
   type  = "SecureString"
   value = "${random_string.db_password.result}"
+}
+
+resource "aws_ssm_parameter" "django_admin_password" {
+  name  = "/km-api/${local.env}/django/admin-password"
+  type  = "SecureString"
+  value = "${random_string.django_admin_password.result}"
 }
 
 resource "aws_ssm_parameter" "django_secret_key" {

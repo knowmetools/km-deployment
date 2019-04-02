@@ -22,6 +22,12 @@ variable "certificate_arn" {
   description = "The ARN of the certificate used for HTTPS connections to the API."
 }
 
+variable "django_admin_email" {}
+
+variable "django_admin_password_ssm_name" {
+  description = "The name of the SSM parameter containing the admin user to create during deployments."
+}
+
 variable "source_branch" {
   default     = "master"
   description = "The branch of the source GitHub repository to deploy."

@@ -26,6 +26,7 @@ logger.setLevel(logging.INFO)
 # Initialize clients for the required services.
 codedeploy = boto3.client('codedeploy')
 ecs = boto3.client('ecs')
+ssm = boto3.client('ssm')
 
 
 def handler(event, context):
@@ -71,6 +72,12 @@ def handler(event, context):
     # the migration task may be placed in.
     subnet_ids_str = os.getenv('SUBNETS', '')
     subnet_ids = subnet_ids_str.split(',') if subnet_ids_str else []
+
+    # Admin credential information
+    admin_email = os.getenv('ADMIN_EMAIL')
+    # The password of the admin user to create during the deployment is
+    # pulled from the following SSM parameter.
+    admin_password_ssm_name = os.getenv('ADMIN_PASSWORD_SSM_NAME')
 
     # The deployment ID and execution ID are used to pull further
     # information and report statuses.
@@ -137,6 +144,12 @@ def handler(event, context):
         execution_role,
     )
 
+    # Pull admin password from SSM
+    admin_password = ssm.get_parameter(
+        Name=admin_password_ssm_name,
+        WithDecryption=True,
+    )
+
     # Using the parameters we have pulled from the previous steps, we
     # launch what is essentially a modified version of the webserver
     # task that performs the tasks required to migrate between versions
@@ -148,6 +161,17 @@ def handler(event, context):
             'containerOverrides': [
                 {
                     'command': ['migrate'],
+                    # Insert admin credentials as env vars.
+                    'environment': [
+                        {
+                            'name': 'ADMIN_EMAIL',
+                            'value': admin_email,
+                        },
+                        {
+                            'name': 'ADMIN_PASSWORD',
+                            'value': admin_password['Parameter']['Value'],
+                        }
+                    ],
                     'name': container_name,
                 },
             ],
