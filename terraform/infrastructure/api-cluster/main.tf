@@ -91,6 +91,7 @@ data "template_file" "task_definition_deploy" {
     execution_role_arn  = "${aws_iam_role.api_task_execution_role.arn}"
     image_placeholder   = "${local.image_placeholder}"
     log_group           = "${aws_cloudwatch_log_group.api.name}"
+    secrets             = "${jsonencode(local.django_secrets)}"
   }
 }
 
@@ -154,6 +155,13 @@ locals {
     {
       name  = "DJANGO_DEBUG"
       value = "True"
+    },
+  ]
+
+  django_secrets = [
+    {
+      name      = "DJANGO_DB_PASSWORD"
+      valueFrom = "${var.db_password_ssm_arn}"
     },
   ]
 }

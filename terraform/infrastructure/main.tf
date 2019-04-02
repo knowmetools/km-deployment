@@ -85,10 +85,6 @@ data "aws_route53_zone" "main" {
   name = "${var.domain}"
 }
 
-data "template_file" "web_user_data" {
-  template = "${file("${path.module}/templates/web_user_data.tpl")}"
-}
-
 ################################################################################
 #                                   Web App                                    #
 ################################################################################
@@ -152,22 +148,6 @@ resource "aws_db_instance" "database" {
     local.base_tags,
     map(
         "Name", local.full_name
-    )
-  )}"
-}
-
-resource "aws_instance" "webserver" {
-  ami                    = "${data.aws_ami.ubuntu.id}"
-  iam_instance_profile   = "${aws_iam_instance_profile.web.name}"
-  instance_type          = "${var.webserver_instance_type}"
-  user_data              = "${data.template_file.web_user_data.rendered}"
-  vpc_security_group_ids = ["${aws_security_group.web.id}"]
-
-  tags = "${merge(
-    local.base_tags,
-    map(
-      "Name", "${local.full_name} Webserver",
-      "Role", "Webserver"
     )
   )}"
 }
@@ -279,9 +259,13 @@ resource "aws_security_group_rule" "web_ssh" {
 resource "aws_route53_record" "web" {
   name    = "${local.api_subdomain}"
   type    = "A"
-  records = ["${aws_instance.webserver.public_ip}"]
-  ttl     = 60
   zone_id = "${data.aws_route53_zone.main.id}"
+
+  alias {
+    name                   = "${module.api_cluster.api_elb_dns_name}"
+    zone_id                = "${module.api_cluster.api_elb_zone_id}"
+    evaluate_target_health = false
+  }
 }
 
 ################################################################################
@@ -304,18 +288,10 @@ resource "random_string" "db_password" {
 
 resource "random_string" "django_admin_password" {
   length = 32
-
-  keepers {
-    instance_id = "${aws_instance.webserver.id}"
-  }
 }
 
 resource "random_string" "django_secret_key" {
   length = 50
-
-  keepers {
-    instance_id = "${aws_instance.webserver.id}"
-  }
 }
 
 resource "aws_ssm_parameter" "db_password" {

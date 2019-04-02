@@ -22,12 +22,7 @@
           "awslogs-stream-prefix": "ecs-api-web"
         }
       },
-      "secrets": [
-        {
-          "name": "DJANGO_DB_PASSWORD",
-          "valueFrom": "${db_password_ssm_arn}"
-        }
-      ]
+      "secrets": ${secrets}
     }
   ],
   "family": "api",
