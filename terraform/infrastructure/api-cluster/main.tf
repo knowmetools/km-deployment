@@ -92,6 +92,7 @@ data "template_file" "task_definition_deploy" {
     image_placeholder   = "${local.image_placeholder}"
     log_group           = "${aws_cloudwatch_log_group.api.name}"
     secrets             = "${jsonencode(local.django_secrets)}"
+    task_role_arn       = "${aws_iam_role.api_task_role.arn}"
   }
 }
 
@@ -154,6 +155,14 @@ locals {
     },
     {
       name  = "DJANGO_DEBUG"
+      value = "True"
+    },
+    {
+      name  = "DJANGO_S3_BUCKET"
+      value = "${var.static_s3_bucket}"
+    },
+    {
+      name  = "DJANGO_S3_STORAGE"
       value = "True"
     },
   ]
@@ -221,7 +230,7 @@ resource "aws_ecs_service" "api" {
   lifecycle {
     # Ignore changes to the task definition since deployments will have
     # overwritten this value to a newer task definition.
-    ignore_changes = ["task_definition"]
+    ignore_changes = ["load_balancer", "task_definition"]
   }
 }
 
@@ -600,6 +609,11 @@ resource "aws_iam_policy" "task_ssm_access" {
   ]
 }
 EOF
+}
+
+resource "aws_iam_role" "api_task_role" {
+  assume_role_policy = "${data.aws_iam_policy_document.ecs_assume_role_policy.json}"
+  name               = "${var.app_slug}-ecs-api-task"
 }
 
 resource "aws_iam_role" "api_deploy" {

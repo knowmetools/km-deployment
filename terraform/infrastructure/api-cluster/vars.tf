@@ -30,3 +30,7 @@ variable "domain_name" {
 variable "environment" {
   description = "The name of the current environment."
 }
+
+variable "static_s3_bucket" {
+  description = "The name of the S3 bucket to store static files in."
+}

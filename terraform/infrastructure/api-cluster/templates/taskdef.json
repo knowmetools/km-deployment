@@ -27,6 +27,7 @@
   ],
   "family": "api",
   "executionRoleArn": "${execution_role_arn}",
+  "taskRoleArn": "${task_role_arn}",
   "networkMode": "awsvpc",
   "compatibilities": [
     "EC2",

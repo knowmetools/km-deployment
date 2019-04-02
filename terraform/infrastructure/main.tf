@@ -123,6 +123,7 @@ module "api_cluster" {
   db_user             = "${var.database_user}"
   domain_name         = "${local.api_domain}"
   environment         = "${local.env}"
+  static_s3_bucket    = "${aws_s3_bucket.static.bucket}"
 }
 
 ################################################################################
@@ -365,6 +366,43 @@ resource "aws_iam_policy" "webserver" {
         "s3:AbortMultipartUpload"
       ],
       "Resource": "arn:aws:s3:::${aws_s3_bucket.static.id}/*"
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "api_s3" {
+  policy_arn = "${aws_iam_policy.api_s3.arn}"
+  role       = "${module.api_cluster.api_ecs_task_role}"
+}
+
+resource "aws_iam_policy" "api_s3" {
+  description = "Grants API tasks access to S3."
+  name        = "${local.full_name_slug}-api-s3-access"
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:ListBucketMultipartUploads",
+        "s3:ListBucketVersions"
+      ],
+      "Resource": "${aws_s3_bucket.static.arn}"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:*Object*",
+        "s3:ListMultipartUploadParts",
+        "s3:AbortMultipartUpload"
+      ],
+      "Resource": "${aws_s3_bucket.static.arn}/*"
     }
   ]
 }

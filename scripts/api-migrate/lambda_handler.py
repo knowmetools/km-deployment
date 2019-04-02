@@ -1,29 +1,79 @@
+"""
+An AWS Lambda function used to launch a migration task on ECS.
+
+At some point before running a new version of our application's codebase
+we need to perform various migration tasks such as migrating the
+database or collecting static files. These tasks are performed in a
+one-off task that is called prior to routing traffic to a new deployed
+version of our ECS application.
+"""
+
 import logging
 import os
 import re
 
 import boto3
 
+
+# The regular expression used to pull a task definition out of the
+# contents of an 'appspec.yaml' file.
 TASK_DEFINITION_PATTERN = r'TaskDefinition: (\S+)$'
 
 # Logging setup is done by Lambda
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# Initialize clients for the required services.
 codedeploy = boto3.client('codedeploy')
 ecs = boto3.client('ecs')
 
 
 def handler(event, context):
+    """
+    The entry point into the lambda function.
+
+    The main purpose of the function is to back track up the deployment
+    "call stack" to find which specific image to use for the migration
+    task. It is important that the image used for the migration task and
+    the image being deployed to serve the API are the same because the
+    images are essentially versions of the codebase.
+
+    The chain we have to follow looks something like:
+
+        Deployment ID > Application Revision > Task Definition
+
+    The task definition contains the information we actually need to
+    launch the migration task.
+
+    Args:
+        event:
+            A dictionary containing information about the deployment
+            from CodeDeploy that invoked the hook.
+        context:
+            An unknown object containing additional context for the
+            request.
+
+    Returns:
+        A dictionary containing a response code and status message.
+    """
+    # Which cluster to launch the migration task on.
     cluster = os.getenv('CLUSTER')
+    # The name of the API webserver container being overridden to run
+    # the migration task.
     container_name = os.getenv('CONTAINER_NAME')
 
+    # A comma-separated list of security group IDs that the migration
+    # task should be placed in.
     security_group_str = os.getenv('SECURITY_GROUPS', '')
     security_groups = security_group_str.split(',') if security_group_str else []
 
+    # A comma-separated list of subnet IDs corresponding to the subnets
+    # the migration task may be placed in.
     subnet_ids_str = os.getenv('SUBNETS', '')
     subnet_ids = subnet_ids_str.split(',') if subnet_ids_str else []
 
+    # The deployment ID and execution ID are used to pull further
+    # information and report statuses.
     deployment_id = event['DeploymentId']
     lifecycle_event_hook_execution_id = event['LifecycleEventHookExecutionId']
 
@@ -39,6 +89,9 @@ def handler(event, context):
         subnet_ids,
     )
 
+    # The first step towards getting to the task definition is to
+    # retrieve the application revision that the current deployment is
+    # deploying.
     application, revision_hash = get_app_info(deployment_id)
     logger.info(
         'Current deployment is for application with revision hash %s',
@@ -54,6 +107,10 @@ def handler(event, context):
             },
         }
     )
+
+    # Once we have the information about the specific application
+    # revision being deployed, we can parse out the task definition ARN
+    # that was automatically injected by CodeDeploy.
     appspec_content = app_revision['revision']['string']['content']
     task_definition_arn = re.search(
         TASK_DEFINITION_PATTERN,
@@ -66,6 +123,24 @@ def handler(event, context):
         task_definition_arn,
     )
 
+    # Pull roles from task definition information. We run the migration
+    # task with the same roles that the API webserver tasks normally run
+    # under.
+    task_definition = ecs.describe_task_definition(
+        taskDefinition=task_definition_arn,
+    )
+    execution_role = task_definition['taskDefinition']['executionRoleArn']
+    task_role = task_definition['taskDefinition']['taskRoleArn']
+    logger.info(
+        'Will execute task with role %s as role %s',
+        task_role,
+        execution_role,
+    )
+
+    # Using the parameters we have pulled from the previous steps, we
+    # launch what is essentially a modified version of the webserver
+    # task that performs the tasks required to migrate between versions
+    # of the codebase.
     ecs.run_task(
         cluster=cluster,
         launchType='FARGATE',
@@ -76,11 +151,14 @@ def handler(event, context):
                     'name': container_name,
                 },
             ],
+            # The role used by the ECS agent.
+            'executionRoleArn': execution_role,
+            # The role our code runs under.
+            'taskRoleArn': task_role,
         },
         networkConfiguration = {
             'awsvpcConfiguration': {
-                # Need to assign a public IP so the container can be
-                # pulled.
+                # Need to assign a public IP so the image can be pulled.
                 'assignPublicIp': 'ENABLED',
                 'securityGroups': security_groups,
                 'subnets': subnet_ids,
@@ -89,12 +167,18 @@ def handler(event, context):
         taskDefinition=task_definition_arn,
     )
 
+    # For now we assume that successfully submitting the 'run_task' call
+    # means the migration is successful. This is NOT actually the case
+    # because the task runs asynchronously so we would have to continue
+    # to poll to get a success code.
     codedeploy.put_lifecycle_event_hook_execution_status(
         deploymentId=deployment_id,
         lifecycleEventHookExecutionId=lifecycle_event_hook_execution_id,
         status='Succeeded',
     )
 
+    # CodeDeploy will keep trying the hook if it does not receive a 200
+    # response.
     return {
         'body': 'Success',
         'statusCode': 200
