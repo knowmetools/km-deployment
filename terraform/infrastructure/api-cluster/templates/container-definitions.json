@@ -6,8 +6,8 @@
     "memoryReservation": 128,
     "portMappings": [
       {
-        "containerPort": 8000,
-        "hostPort": 8000,
+        "containerPort": ${container_port},
+        "hostPort": ${container_port},
         "protocol": "tcp"
       }
     ],

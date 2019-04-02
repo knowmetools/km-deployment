@@ -6,7 +6,7 @@ Resources:
         TaskDefinition: <TASK_DEFINITION>
         LoadBalancerInfo:
           ContainerName: "${container_name}"
-          ContainerPort: 8000
+          ContainerPort: ${container_port}
 
 Hooks:
   - BeforeInstall: "${before_install_hook}"

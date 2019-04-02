@@ -1,3 +1,12 @@
+locals {
+  api_web_container_port = 8000
+  api_web_container_name = "api-web-server"
+  appspec_key            = "appspec.yaml"
+  deploy_params_key      = "deploy-params.zip"
+  image_placeholder      = "IMAGE"
+  task_definition_key    = "taskdef.json"
+}
+
 data "aws_iam_policy_document" "codedeploy_assume_role_policy" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -30,6 +39,7 @@ data "template_file" "appspec" {
   vars {
     before_install_hook = "${module.migrate_hook.function_name}"
     container_name      = "${local.api_web_container_name}"
+    container_port      = "${local.api_web_container_port}"
   }
 }
 
@@ -39,6 +49,7 @@ data "template_file" "container_definitions" {
   vars {
     aws_region        = "${var.aws_region}"
     container_name    = "${local.api_web_container_name}"
+    container_port    = "${local.api_web_container_port}"
     environment       = "${jsonencode(var.api_environment)}"
     image_placeholder = "${local.image_placeholder}"
     log_group         = "${aws_cloudwatch_log_group.api.name}"
@@ -79,14 +90,6 @@ data "archive_file" "lambda_source" {
     content  = "${file("${path.module}/../../../scripts/api-migrate/lambda_handler.py")}"
     filename = "lambda_handler.py"
   }
-}
-
-locals {
-  api_web_container_name = "api-web-server"
-  appspec_key            = "appspec.yaml"
-  deploy_params_key      = "deploy-params.zip"
-  image_placeholder      = "IMAGE"
-  task_definition_key    = "taskdef.json"
 }
 
 module "migrate_hook" {
@@ -133,7 +136,7 @@ resource "aws_ecs_service" "api" {
 
   load_balancer {
     container_name   = "api-web-server"
-    container_port   = 8000
+    container_port   = "${local.api_web_container_port}"
     target_group_arn = "${aws_lb_target_group.green.arn}"
   }
 
