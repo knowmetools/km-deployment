@@ -119,23 +119,84 @@ module "webapp_build" {
 module "api_cluster" {
   source = "api-cluster"
 
-  app_slug                          = "km-${local.env}-api"
-  apple_km_premium_product_codes    = "${var.apple_km_premium_product_codes}"
-  apple_receipt_validation_endpoint = "${lookup(var.apple_receipt_validation_endpoints, var.apple_receipt_validation_mode)}"
-  apple_shared_secret               = "${var.apple_shared_secret}"
-  certificate_arn                   = "${data.aws_acm_certificate.api.arn}"
-  db_host                           = "${aws_db_instance.database.address}"
-  db_name                           = "${var.database_name}"
-  db_password_ssm_arn               = "${aws_ssm_parameter.db_password.arn}"
-  db_port                           = "${aws_db_instance.database.port}"
-  db_user                           = "${var.database_user}"
-  django_secret_key_ssm_arn         = "${aws_ssm_parameter.django_secret_key.arn}"
-  domain_name                       = "${local.api_domain}"
-  email_verification_url            = "https://${module.webapp.cloudfront_url}/verify-email/{key}"
-  environment                       = "${local.env}"
-  password_reset_url                = "https://${module.webapp.cloudfront_url}/reset-password/{key}"
-  sentry_dsn                        = "${var.sentry_dsn}"
-  static_s3_bucket                  = "${aws_s3_bucket.static.bucket}"
+  app_slug        = "km-${local.env}-api"
+  aws_region      = "${var.aws_region}"
+  certificate_arn = "${data.aws_acm_certificate.api.arn}"
+
+  # Environment
+  api_environment = [
+    {
+      name  = "DJANGO_ALLOWED_HOSTS"
+      value = "${local.api_domain}"
+    },
+    {
+      name  = "DJANGO_AWS_REGION"
+      value = "${var.aws_region}"
+    },
+    {
+      name  = "DJANGO_DB_HOST"
+      value = "${aws_db_instance.database.address}"
+    },
+    {
+      name  = "DJANGO_DB_NAME"
+      value = "${aws_db_instance.database.name}"
+    },
+    {
+      name  = "DJANGO_DB_PORT"
+      value = "${aws_db_instance.database.port}"
+    },
+    {
+      name  = "DJANGO_DB_USER"
+      value = "${var.application_db_user}"
+    },
+    {
+      name  = "DJANGO_EMAIL_VERIFICATION_URL"
+      value = "https://${module.webapp.cloudfront_url}/verify-email/{key}"
+    },
+    {
+      name  = "DJANGO_HTTPS"
+      value = "True"
+    },
+    {
+      name  = "DJANGO_HTTPS_LOAD_BALANCER"
+      value = "True"
+    },
+    {
+      name  = "DJANGO_PASSWORD_RESET_URL"
+      value = "https://${module.webapp.cloudfront_url}/reset-password/{key}"
+    },
+    {
+      name  = "DJANGO_S3_BUCKET"
+      value = "${aws_s3_bucket.static.bucket}"
+    },
+    {
+      name  = "DJANGO_S3_STORAGE"
+      value = "True"
+    },
+    {
+      name  = "DJANGO_SENTRY_DSN"
+      value = "${var.sentry_dsn}"
+    },
+    {
+      name  = "DJANGO_SENTRY_ENVIRONMENT"
+      value = "${local.env}"
+    },
+    {
+      name  = "DJANGO_SES_ENABLED"
+      value = "True"
+    },
+  ]
+
+  api_secrets = [
+    {
+      name      = "DJANGO_DB_PASSWORD"
+      valueFrom = "${aws_ssm_parameter.db_password.arn}"
+    },
+    {
+      name      = "DJANGO_SECRET_KEY"
+      valueFrom = "${aws_ssm_parameter.db_password.arn}"
+    },
+  ]
 }
 
 ################################################################################

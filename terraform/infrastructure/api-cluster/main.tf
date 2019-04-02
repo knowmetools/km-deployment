@@ -24,8 +24,6 @@ data "aws_iam_policy_document" "ecs_assume_role_policy" {
   }
 }
 
-data "aws_region" "current" {}
-
 data "aws_subnet_ids" "default" {
   vpc_id = "${data.aws_vpc.default.id}"
 }
@@ -84,15 +82,14 @@ data "template_file" "task_definition_deploy" {
   template = "${file("${path.module}/templates/taskdef.json")}"
 
   vars {
-    aws_region          = "${data.aws_region.current.name}"
-    container_name      = "${local.api_web_container_name}"
-    db_password_ssm_arn = "${var.db_password_ssm_arn}"
-    environment         = "${jsonencode(local.django_env)}"
-    execution_role_arn  = "${aws_iam_role.api_task_execution_role.arn}"
-    image_placeholder   = "${local.image_placeholder}"
-    log_group           = "${aws_cloudwatch_log_group.api.name}"
-    secrets             = "${jsonencode(local.django_secrets)}"
-    task_role_arn       = "${aws_iam_role.api_task_role.arn}"
+    aws_region         = "${var.aws_region}"
+    container_name     = "${local.api_web_container_name}"
+    environment        = "${jsonencode(var.api_environment)}"
+    execution_role_arn = "${aws_iam_role.api_task_execution_role.arn}"
+    image_placeholder  = "${local.image_placeholder}"
+    log_group          = "${aws_cloudwatch_log_group.api.name}"
+    secrets            = "${jsonencode(var.api_secrets)}"
+    task_role_arn      = "${aws_iam_role.api_task_role.arn}"
   }
 }
 
@@ -127,76 +124,6 @@ locals {
   deploy_params_key      = "deploy-params.zip"
   image_placeholder      = "IMAGE"
   task_definition_key    = "taskdef.json"
-
-  django_env = [
-    {
-      name  = "DJANGO_ALLOWED_HOSTS"
-      value = "${var.domain_name}"
-    },
-    {
-      name  = "DJANGO_AWS_REGION"
-      value = "${data.aws_region.current.name}"
-    },
-    {
-      name  = "DJANGO_DB_HOST"
-      value = "${var.db_host}"
-    },
-    {
-      name  = "DJANGO_DB_NAME"
-      value = "${var.db_name}"
-    },
-    {
-      name  = "DJANGO_DB_PORT"
-      value = "${var.db_port}"
-    },
-    {
-      name  = "DJANGO_DB_USER"
-      value = "${var.db_user}"
-    },
-    {
-      name  = "DJANGO_EMAIL_VERIFICATION_URL"
-      value = "${var.email_verification_url}"
-    },
-    {
-      name  = "DJANGO_HTTPS"
-      value = "True"
-    },
-    {
-      name  = "DJANGO_HTTPS_LOAD_BALANCER"
-      value = "True"
-    },
-    {
-      name  = "DJANGO_S3_BUCKET"
-      value = "${var.static_s3_bucket}"
-    },
-    {
-      name  = "DJANGO_S3_STORAGE"
-      value = "True"
-    },
-    {
-      name  = "DJANGO_SENTRY_DSN"
-      value = "${var.sentry_dsn}"
-    },
-    {
-      name  = "DJANGO_SENTRY_ENVIRONMENT"
-      value = "${var.environment}"
-    },
-    {
-      name  = "DJANGO_SES_ENABLED"
-      value = "True"
-    },
-  ]
-
-  django_secrets = [
-    {
-      name      = "DJANGO_DB_PASSWORD"
-      valueFrom = "${var.db_password_ssm_arn}"
-    },
-    {
-      name      = "DJANGO_SECRET_KEY"
-      valueFrom = "${var.django_secret_key_ssm_arn}"
-    },
-  ]
 }
 
 module "migrate_hook" {
