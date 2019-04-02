@@ -154,8 +154,8 @@ locals {
       value = "${var.db_user}"
     },
     {
-      name  = "DJANGO_DEBUG"
-      value = "True"
+      name  = "DJANGO_EMAIL_VERIFICATION_URL"
+      value = "${var.email_verification_url}"
     },
     {
       name  = "DJANGO_HTTPS"
@@ -173,12 +173,28 @@ locals {
       name  = "DJANGO_S3_STORAGE"
       value = "True"
     },
+    {
+      name  = "DJANGO_SENTRY_DSN"
+      value = "${var.sentry_dsn}"
+    },
+    {
+      name  = "DJANGO_SENTRY_ENVIRONMENT"
+      value = "${var.environment}"
+    },
+    {
+      name  = "DJANGO_SES_ENABLED"
+      value = "True"
+    },
   ]
 
   django_secrets = [
     {
       name      = "DJANGO_DB_PASSWORD"
       valueFrom = "${var.db_password_ssm_arn}"
+    },
+    {
+      name      = "DJANGO_SECRET_KEY"
+      valueFrom = "${var.django_secret_key_ssm_arn}"
     },
   ]
 }
@@ -283,6 +299,12 @@ resource "aws_lb_listener" "api" {
   default_action {
     target_group_arn = "${aws_lb_target_group.green.arn}"
     type             = "forward"
+  }
+
+  lifecycle {
+    # The target group is constantly switched back and forth by
+    # deployments.
+    ignore_changes = ["default_action"]
   }
 }
 

@@ -119,16 +119,23 @@ module "webapp_build" {
 module "api_cluster" {
   source = "api-cluster"
 
-  app_slug            = "km-${local.env}-api"
-  certificate_arn     = "${data.aws_acm_certificate.api.arn}"
-  db_host             = "${aws_db_instance.database.address}"
-  db_name             = "${var.database_name}"
-  db_password_ssm_arn = "${aws_ssm_parameter.db_password.arn}"
-  db_port             = "${aws_db_instance.database.port}"
-  db_user             = "${var.database_user}"
-  domain_name         = "${local.api_domain}"
-  environment         = "${local.env}"
-  static_s3_bucket    = "${aws_s3_bucket.static.bucket}"
+  app_slug                          = "km-${local.env}-api"
+  apple_km_premium_product_codes    = "${var.apple_km_premium_product_codes}"
+  apple_receipt_validation_endpoint = "${lookup(var.apple_receipt_validation_endpoints, var.apple_receipt_validation_mode)}"
+  apple_shared_secret               = "${var.apple_shared_secret}"
+  certificate_arn                   = "${data.aws_acm_certificate.api.arn}"
+  db_host                           = "${aws_db_instance.database.address}"
+  db_name                           = "${var.database_name}"
+  db_password_ssm_arn               = "${aws_ssm_parameter.db_password.arn}"
+  db_port                           = "${aws_db_instance.database.port}"
+  db_user                           = "${var.database_user}"
+  django_secret_key_ssm_arn         = "${aws_ssm_parameter.django_secret_key.arn}"
+  domain_name                       = "${local.api_domain}"
+  email_verification_url            = "https://${module.webapp.cloudfront_url}/verify-email/{key}"
+  environment                       = "${local.env}"
+  password_reset_url                = "https://${module.webapp.cloudfront_url}/reset-password/{key}"
+  sentry_dsn                        = "${var.sentry_dsn}"
+  static_s3_bucket                  = "${aws_s3_bucket.static.bucket}"
 }
 
 ################################################################################
@@ -306,76 +313,15 @@ resource "aws_ssm_parameter" "db_password" {
   value = "${random_string.db_password.result}"
 }
 
+resource "aws_ssm_parameter" "django_secret_key" {
+  name  = "/km-api/${local.env}/django/secret-key"
+  type  = "SecureString"
+  value = "${random_string.django_secret_key.result}"
+}
+
 ################################################################################
 #                                 IAM Policies                                 #
 ################################################################################
-
-resource "aws_iam_instance_profile" "web" {
-  role = "${aws_iam_role.web.name}"
-}
-
-resource "aws_iam_role" "web" {
-  assume_role_policy = "${data.aws_iam_policy_document.instance-assume-role-policy.json}"
-  description        = "Role for ${var.application_name} webservers."
-}
-
-resource "aws_iam_role_policy_attachment" "webserver" {
-  policy_arn = "${aws_iam_policy.webserver.arn}"
-  role       = "${aws_iam_role.web.name}"
-}
-
-resource "aws_iam_policy" "webserver" {
-  description = "Grants webservers access to Cloudfront, SES, and static files on S3."
-
-  policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ses:GetSendQuota",
-        "ses:SendEmail",
-        "ses:SendRawEmail"
-      ],
-      "Resource": [
-        "*"
-      ]
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-      ],
-      "Resource": [
-        "*"
-      ]
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:ListBucket",
-        "s3:GetBucketLocation",
-        "s3:ListBucketMultipartUploads",
-        "s3:ListBucketVersions"
-      ],
-      "Resource": "arn:aws:s3:::${aws_s3_bucket.static.id}"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:*Object*",
-        "s3:ListMultipartUploadParts",
-        "s3:AbortMultipartUpload"
-      ],
-      "Resource": "arn:aws:s3:::${aws_s3_bucket.static.id}/*"
-    }
-  ]
-}
-EOF
-}
 
 resource "aws_iam_role_policy_attachment" "api_s3" {
   policy_arn = "${aws_iam_policy.api_s3.arn}"
@@ -408,6 +354,35 @@ resource "aws_iam_policy" "api_s3" {
         "s3:AbortMultipartUpload"
       ],
       "Resource": "${aws_s3_bucket.static.arn}/*"
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "api_ses" {
+  policy_arn = "${aws_iam_policy.api_ses.arn}"
+  role       = "${module.api_cluster.api_ecs_task_role}"
+}
+
+resource "aws_iam_policy" "api_ses" {
+  description = "Grants API tasks access to SES to send emails."
+  name        = "${local.full_name_slug}-api-ses-access"
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ses:GetSendQuota",
+        "ses:SendEmail",
+        "ses:SendRawEmail"
+      ],
+      "Resource": [
+        "*"
+      ]
     }
   ]
 }
