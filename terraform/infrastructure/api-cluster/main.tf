@@ -41,55 +41,26 @@ data "template_file" "appspec" {
   }
 }
 
-data "template_file" "task_definition" {
-  template = <<EOF
-[
-  {
-    "environment": [
-      {
-        "name": "DJANGO_DEBUG",
-        "value": "True"
-      }
-    ],
-    "image": "$${ecr_uri}",
-    "logConfiguration": {
-      "logDriver": "awslogs",
-      "options": {
-        "awslogs-region": "us-east-1",
-        "awslogs-group": "$${app_slug}",
-        "awslogs-stream-prefix": "ecs-api-web"
-      }
-    },
-    "memoryReservation": 128,
-    "name": "$${container_name}",
-    "portMappings": [
-      {
-        "containerPort": 8000
-      }
-    ]
-  }
-]
-EOF
+data "template_file" "container_definitions" {
+  template = "${file("${path.module}/templates/container-definitions.json")}"
 
   vars {
-    app_slug       = "${var.app_slug}"
-    container_name = "${local.api_web_container_name}"
-    ecr_uri        = "${aws_ecr_repository.api.repository_url}"
+    aws_region        = "${var.aws_region}"
+    container_name    = "${local.api_web_container_name}"
+    environment       = "${jsonencode(var.api_environment)}"
+    image_placeholder = "${local.image_placeholder}"
+    log_group         = "${aws_cloudwatch_log_group.api.name}"
+    secrets           = "${jsonencode(var.api_secrets)}"
   }
 }
 
-data "template_file" "task_definition_deploy" {
+data "template_file" "task_definition" {
   template = "${file("${path.module}/templates/taskdef.json")}"
 
   vars {
-    aws_region         = "${var.aws_region}"
-    container_name     = "${local.api_web_container_name}"
-    environment        = "${jsonencode(var.api_environment)}"
-    execution_role_arn = "${aws_iam_role.api_task_execution_role.arn}"
-    image_placeholder  = "${local.image_placeholder}"
-    log_group          = "${aws_cloudwatch_log_group.api.name}"
-    secrets            = "${jsonencode(var.api_secrets)}"
-    task_role_arn      = "${aws_iam_role.api_task_role.arn}"
+    container_definitions = "${data.template_file.container_definitions.rendered}"
+    execution_role_arn    = "${aws_iam_role.api_task_execution_role.arn}"
+    task_role_arn         = "${aws_iam_role.api_task_role.arn}"
   }
 }
 
@@ -103,7 +74,7 @@ data "archive_file" "api_deploy_params" {
   }
 
   source {
-    content  = "${data.template_file.task_definition_deploy.rendered}"
+    content  = "${data.template_file.task_definition.rendered}"
     filename = "${local.task_definition_key}"
   }
 }
@@ -186,7 +157,15 @@ resource "aws_ecs_service" "api" {
 }
 
 resource "aws_ecs_task_definition" "api" {
-  container_definitions    = "${data.template_file.task_definition.rendered}"
+  # This task definition is never actually used, but we need to replace
+  # the placeholder used by CodeDeploy with a set of valid characters so
+  # we can create the initial task definition.
+  container_definitions = "${replace(
+    data.template_file.container_definitions.rendered,
+    "<${local.image_placeholder}>",
+    "dummy-image"
+  )}"
+
   cpu                      = 256
   execution_role_arn       = "${aws_iam_role.api_task_execution_role.arn}"
   family                   = "api"

@@ -1,30 +1,5 @@
 {
-  "containerDefinitions": [
-    {
-      "name": "${container_name}",
-      "image": "<${image_placeholder}>",
-      "cpu": 0,
-      "memoryReservation": 128,
-      "portMappings": [
-        {
-          "containerPort": 8000,
-          "hostPort": 8000,
-          "protocol": "tcp"
-        }
-      ],
-      "essential": true,
-      "environment": ${environment},
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "${log_group}",
-          "awslogs-region": "${aws_region}",
-          "awslogs-stream-prefix": "ecs-api-web"
-        }
-      },
-      "secrets": ${secrets}
-    }
-  ],
+  "containerDefinitions": ${container_definitions},
   "family": "api",
   "executionRoleArn": "${execution_role_arn}",
   "taskRoleArn": "${task_role_arn}",

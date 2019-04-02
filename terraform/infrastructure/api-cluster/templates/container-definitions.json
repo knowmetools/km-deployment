@@ -1,0 +1,26 @@
+[
+  {
+    "name": "${container_name}",
+    "image": "<${image_placeholder}>",
+    "cpu": 0,
+    "memoryReservation": 128,
+    "portMappings": [
+      {
+        "containerPort": 8000,
+        "hostPort": 8000,
+        "protocol": "tcp"
+      }
+    ],
+    "essential": true,
+    "environment": ${environment},
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "${log_group}",
+        "awslogs-region": "${aws_region}",
+        "awslogs-stream-prefix": "ecs-api-web"
+      }
+    },
+    "secrets": ${secrets}
+  }
+]
