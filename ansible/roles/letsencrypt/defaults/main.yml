@@ -1,3 +1,0 @@
----
-letsencrypt_cert_dir: /etc/letsencrypt/live/{{ letsencrypt_domain }}
-letsencrypt_dhparam: /etc/nginx/dhparam.pem

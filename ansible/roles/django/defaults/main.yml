@@ -1,8 +1,0 @@
----
-django_env: {}
-django_user: root
-
-django_admin_email: "admin@{{ inventory_hostname }}"
-django_admin_env:
-  ADMIN_EMAIL: "{{ django_admin_email }}"
-  ADMIN_PASSWORD: "{{ django_admin_password }}"
