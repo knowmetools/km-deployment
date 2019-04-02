@@ -24,14 +24,6 @@ data "aws_iam_policy_document" "ecs_assume_role_policy" {
   }
 }
 
-data "aws_subnet_ids" "default" {
-  vpc_id = "${data.aws_vpc.default.id}"
-}
-
-data "aws_vpc" "default" {
-  default = true
-}
-
 data "template_file" "appspec" {
   template = "${file("${path.module}/templates/appspec.yml")}"
 
@@ -112,7 +104,7 @@ module "migrate_hook" {
     CLUSTER                 = "${aws_ecs_cluster.main.name}"
     CONTAINER_NAME          = "${local.api_web_container_name}"
     SECURITY_GROUPS         = "${aws_security_group.all.id}"
-    SUBNETS                 = "${join(",", data.aws_subnet_ids.default.ids)}"
+    SUBNETS                 = "${join(",", var.subnet_ids)}"
   }
 }
 
@@ -148,7 +140,7 @@ resource "aws_ecs_service" "api" {
   network_configuration {
     assign_public_ip = true
     security_groups  = ["${aws_security_group.all.id}"]
-    subnets          = ["${data.aws_subnet_ids.default.ids}"]
+    subnets          = ["${var.subnet_ids}"]
   }
 
   lifecycle {
@@ -186,7 +178,7 @@ resource "aws_ecs_task_definition" "api" {
 resource "aws_lb" "api" {
   name            = "${var.app_slug}-lb"
   security_groups = ["${aws_security_group.all.id}"]
-  subnets         = ["${data.aws_subnet_ids.default.ids}"]
+  subnets         = ["${var.subnet_ids}"]
 }
 
 resource "aws_lb_listener" "redirect_to_https" {
@@ -228,7 +220,7 @@ resource "aws_lb_target_group" "blue" {
   port        = 80
   protocol    = "HTTP"
   target_type = "ip"
-  vpc_id      = "${data.aws_vpc.default.id}"
+  vpc_id      = "${var.vpc_id}"
 
   health_check {
     matcher = "200-499"
@@ -241,7 +233,7 @@ resource "aws_lb_target_group" "green" {
   port        = 80
   protocol    = "HTTP"
   target_type = "ip"
-  vpc_id      = "${data.aws_vpc.default.id}"
+  vpc_id      = "${var.vpc_id}"
 
   health_check {
     matcher = "200-499"

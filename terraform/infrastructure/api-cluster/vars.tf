@@ -40,3 +40,12 @@ variable "source_owner" {
 variable "source_repo" {
   description = "The name of the GitHub repository containing the source code for the API."
 }
+
+variable "subnet_ids" {
+  description = "A list of the subnets to create cluster resources in."
+  type        = "list"
+}
+
+variable "vpc_id" {
+  description = "The ID of the VPC to create the cluster in."
+}

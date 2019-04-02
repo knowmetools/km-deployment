@@ -89,6 +89,14 @@ data "aws_route53_zone" "main" {
   name = "${var.domain}"
 }
 
+data "aws_subnet_ids" "default" {
+  vpc_id = "${data.aws_vpc.default.id}"
+}
+
+data "aws_vpc" "default" {
+  default = true
+}
+
 ################################################################################
 #                                   Web App                                    #
 ################################################################################
@@ -127,6 +135,8 @@ module "api_cluster" {
   source_branch                  = "${var.api_source_branch}"
   source_owner                   = "${var.github_organization}"
   source_repo                    = "${var.api_source_repo}"
+  subnet_ids                     = "${data.aws_subnet_ids.default.ids}"
+  vpc_id                         = "${data.aws_vpc.default.id}"
 
   # Environment
   api_environment = [
