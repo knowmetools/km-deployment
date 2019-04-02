@@ -48,6 +48,10 @@ locals {
   }
 }
 
+data "aws_acm_certificate" "api" {
+  domain = "toolbox.knowmetools.com"
+}
+
 data "aws_acm_certificate" "webapp" {
   domain = "app.knowmetools.com"
 }
@@ -116,6 +120,7 @@ module "api_cluster" {
   source = "api-cluster"
 
   app_slug            = "km-${local.env}-api"
+  certificate_arn     = "${data.aws_acm_certificate.api.arn}"
   db_host             = "${aws_db_instance.database.address}"
   db_name             = "${var.database_name}"
   db_password_ssm_arn = "${aws_ssm_parameter.db_password.arn}"

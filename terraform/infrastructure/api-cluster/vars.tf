@@ -2,6 +2,10 @@ variable "app_slug" {
   description = "A unique slug identifying the application."
 }
 
+variable "certificate_arn" {
+  description = "The ARN of the certificate used for HTTPS connections to the API."
+}
+
 variable "db_host" {
   description = "The hostname of the database to connect to."
 }

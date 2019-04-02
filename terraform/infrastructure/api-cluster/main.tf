@@ -158,6 +158,14 @@ locals {
       value = "True"
     },
     {
+      name  = "DJANGO_HTTPS"
+      value = "True"
+    },
+    {
+      name  = "DJANGO_HTTPS_LOAD_BALANCER"
+      value = "True"
+    },
+    {
       name  = "DJANGO_S3_BUCKET"
       value = "${var.static_s3_bucket}"
     },
@@ -250,9 +258,27 @@ resource "aws_lb" "api" {
   subnets         = ["${data.aws_subnet_ids.default.ids}"]
 }
 
-resource "aws_lb_listener" "api" {
+resource "aws_lb_listener" "redirect_to_https" {
   load_balancer_arn = "${aws_lb.api.arn}"
   port              = 80
+
+  default_action {
+    type = "redirect"
+
+    redirect {
+      port        = 443
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+resource "aws_lb_listener" "api" {
+  certificate_arn   = "${var.certificate_arn}"
+  load_balancer_arn = "${aws_lb.api.arn}"
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
 
   default_action {
     target_group_arn = "${aws_lb_target_group.green.arn}"
