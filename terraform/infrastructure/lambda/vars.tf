@@ -1,7 +1,8 @@
 variable "environment_variables" {
-  default     = {}
+  default = {
+  }
   description = "A map of environment variables to execute the function with."
-  type        = "map"
+  type        = map(string)
 }
 
 variable "function_name" {
@@ -23,3 +24,4 @@ variable "source_archive" {
 variable "timeout" {
   description = "The number of seconds before the function times out."
 }
+

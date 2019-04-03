@@ -34,36 +34,36 @@ data "aws_iam_policy_document" "ecs_assume_role_policy" {
 }
 
 data "template_file" "appspec" {
-  template = "${file("${path.module}/templates/appspec.yml")}"
+  template = file("${path.module}/templates/appspec.yml")
 
-  vars {
-    before_install_hook = "${module.migrate_hook.function_name}"
-    container_name      = "${local.api_web_container_name}"
-    container_port      = "${local.api_web_container_port}"
+  vars = {
+    before_install_hook = module.migrate_hook.function_name
+    container_name      = local.api_web_container_name
+    container_port      = local.api_web_container_port
   }
 }
 
 data "template_file" "container_definitions" {
-  template = "${file("${path.module}/templates/container-definitions.json")}"
+  template = file("${path.module}/templates/container-definitions.json")
 
-  vars {
-    aws_region        = "${var.aws_region}"
-    container_name    = "${local.api_web_container_name}"
-    container_port    = "${local.api_web_container_port}"
-    environment       = "${jsonencode(var.api_environment)}"
-    image_placeholder = "${local.image_placeholder}"
-    log_group         = "${aws_cloudwatch_log_group.api.name}"
-    secrets           = "${jsonencode(var.api_secrets)}"
+  vars = {
+    aws_region        = var.aws_region
+    container_name    = local.api_web_container_name
+    container_port    = local.api_web_container_port
+    environment       = jsonencode(var.api_environment)
+    image_placeholder = local.image_placeholder
+    log_group         = aws_cloudwatch_log_group.api.name
+    secrets           = jsonencode(var.api_secrets)
   }
 }
 
 data "template_file" "task_definition" {
-  template = "${file("${path.module}/templates/taskdef.json")}"
+  template = file("${path.module}/templates/taskdef.json")
 
-  vars {
-    container_definitions = "${data.template_file.container_definitions.rendered}"
-    execution_role_arn    = "${aws_iam_role.api_task_execution_role.arn}"
-    task_role_arn         = "${aws_iam_role.api_task_role.arn}"
+  vars = {
+    container_definitions = data.template_file.container_definitions.rendered
+    execution_role_arn    = aws_iam_role.api_task_execution_role.arn
+    task_role_arn         = aws_iam_role.api_task_role.arn
   }
 }
 
@@ -72,13 +72,13 @@ data "archive_file" "api_deploy_params" {
   type        = "zip"
 
   source {
-    content  = "${data.template_file.appspec.rendered}"
-    filename = "${local.appspec_key}"
+    content  = data.template_file.appspec.rendered
+    filename = local.appspec_key
   }
 
   source {
-    content  = "${data.template_file.task_definition.rendered}"
-    filename = "${local.task_definition_key}"
+    content  = data.template_file.task_definition.rendered
+    filename = local.task_definition_key
   }
 }
 
@@ -87,7 +87,9 @@ data "archive_file" "lambda_source" {
   type        = "zip"
 
   source {
-    content  = "${file("${path.module}/../../../scripts/api-migrate/lambda_handler.py")}"
+    content = file(
+      "${path.module}/../../../scripts/api-migrate/lambda_handler.py",
+    )
     filename = "lambda_handler.py"
   }
 }
@@ -98,37 +100,37 @@ module "migrate_hook" {
   function_name  = "${var.app_slug}-migrate-hook"
   handler        = "lambda_handler.handler"
   runtime        = "python3.7"
-  source_archive = "${data.archive_file.lambda_source.output_path}"
+  source_archive = data.archive_file.lambda_source.output_path
   timeout        = 120
 
   environment_variables = {
-    ADMIN_EMAIL             = "${var.django_admin_email}"
-    ADMIN_PASSWORD_SSM_NAME = "${var.django_admin_password_ssm_name}"
-    CLUSTER                 = "${aws_ecs_cluster.main.name}"
-    CONTAINER_NAME          = "${local.api_web_container_name}"
-    SECURITY_GROUPS         = "${aws_security_group.all.id}"
-    SUBNETS                 = "${join(",", var.subnet_ids)}"
+    ADMIN_EMAIL             = var.django_admin_email
+    ADMIN_PASSWORD_SSM_NAME = var.django_admin_password_ssm_name
+    CLUSTER                 = aws_ecs_cluster.main.name
+    CONTAINER_NAME          = local.api_web_container_name
+    SECURITY_GROUPS         = aws_security_group.all.id
+    SUBNETS                 = join(",", var.subnet_ids)
   }
 }
 
 resource "aws_ecs_cluster" "main" {
-  name = "${var.app_slug}"
+  name = var.app_slug
 }
 
 resource "aws_ecr_repository" "api" {
-  name = "${var.app_slug}"
+  name = var.app_slug
 }
 
 resource "aws_ecs_service" "api" {
-  depends_on = ["aws_lb_listener.api"]
+  depends_on = [aws_lb_listener.api]
 
-  cluster                            = "${aws_ecs_cluster.main.arn}"
+  cluster                            = aws_ecs_cluster.main.arn
   deployment_maximum_percent         = 200
   deployment_minimum_healthy_percent = 100
   desired_count                      = 1
   launch_type                        = "FARGATE"
   name                               = "api"
-  task_definition                    = "${aws_ecs_task_definition.api.arn}"
+  task_definition                    = aws_ecs_task_definition.api.arn
 
   deployment_controller {
     type = "CODE_DEPLOY"
@@ -136,20 +138,23 @@ resource "aws_ecs_service" "api" {
 
   load_balancer {
     container_name   = "api-web-server"
-    container_port   = "${local.api_web_container_port}"
-    target_group_arn = "${aws_lb_target_group.green.arn}"
+    container_port   = local.api_web_container_port
+    target_group_arn = aws_lb_target_group.green.arn
   }
 
   network_configuration {
     assign_public_ip = true
-    security_groups  = ["${aws_security_group.all.id}"]
-    subnets          = ["${var.subnet_ids}"]
+    security_groups  = [aws_security_group.all.id]
+    subnets          = var.subnet_ids
   }
 
   lifecycle {
     # Ignore changes to the task definition since deployments will have
     # overwritten this value to a newer task definition.
-    ignore_changes = ["load_balancer", "task_definition"]
+    ignore_changes = [
+      load_balancer,
+      task_definition,
+    ]
   }
 }
 
@@ -157,14 +162,14 @@ resource "aws_ecs_task_definition" "api" {
   # This task definition is never actually used, but we need to replace
   # the placeholder used by CodeDeploy with a set of valid characters so
   # we can create the initial task definition.
-  container_definitions = "${replace(
+  container_definitions = replace(
     data.template_file.container_definitions.rendered,
     "<${local.image_placeholder}>",
-    "dummy-image"
-  )}"
+    "dummy-image",
+  )
 
   cpu                      = 256
-  execution_role_arn       = "${aws_iam_role.api_task_execution_role.arn}"
+  execution_role_arn       = aws_iam_role.api_task_execution_role.arn
   family                   = "api"
   memory                   = 512
   network_mode             = "awsvpc"
@@ -174,18 +179,18 @@ resource "aws_ecs_task_definition" "api" {
     # We don't actually care about updating the container definitions
     # because that is handled by CodeDeploy and updated outside of
     # Terraform.
-    ignore_changes = ["container_definitions"]
+    ignore_changes = [container_definitions]
   }
 }
 
 resource "aws_lb" "api" {
   name            = "${var.app_slug}-lb"
-  security_groups = ["${aws_security_group.all.id}"]
-  subnets         = ["${var.subnet_ids}"]
+  security_groups = [aws_security_group.all.id]
+  subnets         = var.subnet_ids
 }
 
 resource "aws_lb_listener" "redirect_to_https" {
-  load_balancer_arn = "${aws_lb.api.arn}"
+  load_balancer_arn = aws_lb.api.arn
   port              = 80
 
   default_action {
@@ -200,21 +205,21 @@ resource "aws_lb_listener" "redirect_to_https" {
 }
 
 resource "aws_lb_listener" "api" {
-  certificate_arn   = "${var.certificate_arn}"
-  load_balancer_arn = "${aws_lb.api.arn}"
+  certificate_arn   = var.certificate_arn
+  load_balancer_arn = aws_lb.api.arn
   port              = 443
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
 
   default_action {
-    target_group_arn = "${aws_lb_target_group.green.arn}"
+    target_group_arn = aws_lb_target_group.green.arn
     type             = "forward"
   }
 
   lifecycle {
     # The target group is constantly switched back and forth by
     # deployments.
-    ignore_changes = ["default_action"]
+    ignore_changes = [default_action]
   }
 }
 
@@ -223,7 +228,7 @@ resource "aws_lb_target_group" "blue" {
   port        = 80
   protocol    = "HTTP"
   target_type = "ip"
-  vpc_id      = "${var.vpc_id}"
+  vpc_id      = var.vpc_id
 
   health_check {
     matcher = "200-499"
@@ -236,7 +241,7 @@ resource "aws_lb_target_group" "green" {
   port        = 80
   protocol    = "HTTP"
   target_type = "ip"
-  vpc_id      = "${var.vpc_id}"
+  vpc_id      = var.vpc_id
 
   health_check {
     matcher = "200-499"
@@ -261,7 +266,7 @@ resource "aws_security_group" "all" {
 }
 
 resource "aws_cloudwatch_log_group" "api" {
-  name = "${var.app_slug}"
+  name = var.app_slug
 }
 
 ################################################################################
@@ -270,10 +275,10 @@ resource "aws_cloudwatch_log_group" "api" {
 
 resource "aws_codepipeline" "api" {
   name     = "${var.app_slug}-webservers"
-  role_arn = "${aws_iam_role.codepipeline.arn}"
+  role_arn = aws_iam_role.codepipeline.arn
 
   artifact_store {
-    location = "${aws_s3_bucket.artifacts.bucket}"
+    location = aws_s3_bucket.artifacts.bucket
     type     = "S3"
   }
 
@@ -288,10 +293,10 @@ resource "aws_codepipeline" "api" {
       provider         = "GitHub"
       version          = "1"
 
-      configuration {
-        Branch = "${var.source_branch}"
-        Owner  = "${var.source_owner}"
-        Repo   = "${var.source_repo}"
+      configuration = {
+        Branch = var.source_branch
+        Owner  = var.source_owner
+        Repo   = var.source_repo
       }
     }
 
@@ -303,10 +308,10 @@ resource "aws_codepipeline" "api" {
       provider         = "S3"
       version          = "1"
 
-      configuration {
+      configuration = {
         PollForSourceChanges = "true"
-        S3Bucket             = "${aws_s3_bucket.source_parameters.bucket}"
-        S3ObjectKey          = "${local.deploy_params_key}"
+        S3Bucket             = aws_s3_bucket.source_parameters.bucket
+        S3ObjectKey          = local.deploy_params_key
       }
     }
   }
@@ -323,8 +328,8 @@ resource "aws_codepipeline" "api" {
       provider         = "CodeBuild"
       version          = "1"
 
-      configuration {
-        ProjectName = "${aws_codebuild_project.api.name}"
+      configuration = {
+        ProjectName = aws_codebuild_project.api.name
       }
     }
   }
@@ -340,13 +345,13 @@ resource "aws_codepipeline" "api" {
       provider        = "CodeDeployToECS"
       version         = "1"
 
-      configuration {
-        ApplicationName                = "${aws_codedeploy_app.api.name}"
+      configuration = {
+        ApplicationName                = aws_codedeploy_app.api.name
         AppSpecTemplateArtifact        = "DeployParams"
-        AppSpecTemplatePath            = "${local.appspec_key}"
-        DeploymentGroupName            = "${aws_codedeploy_deployment_group.main.deployment_group_name}"
+        AppSpecTemplatePath            = local.appspec_key
+        DeploymentGroupName            = aws_codedeploy_deployment_group.main.deployment_group_name
         Image1ArtifactName             = "ImageDefinitions"
-        Image1ContainerName            = "${local.image_placeholder}"
+        Image1ContainerName            = local.image_placeholder
         TaskDefinitionTemplateArtifact = "DeployParams"
       }
     }
@@ -356,8 +361,8 @@ resource "aws_codepipeline" "api" {
 resource "aws_codebuild_project" "api" {
   build_timeout = 5
   description   = "Build the Docker image for the ${var.app_slug} API."
-  name          = "${var.app_slug}"
-  service_role  = "${aws_iam_role.codebuild.arn}"
+  name          = var.app_slug
+  service_role  = aws_iam_role.codebuild.arn
 
   artifacts {
     type = "CODEPIPELINE"
@@ -371,12 +376,12 @@ resource "aws_codebuild_project" "api" {
 
     environment_variable {
       name  = "ECR_URI"
-      value = "${aws_ecr_repository.api.repository_url}"
+      value = aws_ecr_repository.api.repository_url
     }
 
     environment_variable {
       name  = "SERVICE_NAME"
-      value = "${local.api_web_container_name}"
+      value = local.api_web_container_name
     }
   }
 
@@ -387,14 +392,14 @@ resource "aws_codebuild_project" "api" {
 
 resource "aws_codedeploy_app" "api" {
   compute_platform = "ECS"
-  name             = "${var.app_slug}"
+  name             = var.app_slug
 }
 
 resource "aws_codedeploy_deployment_group" "main" {
-  app_name               = "${aws_codedeploy_app.api.name}"
+  app_name               = aws_codedeploy_app.api.name
   deployment_config_name = "CodeDeployDefault.ECSAllAtOnce"
   deployment_group_name  = "api-web-servers"
-  service_role_arn       = "${aws_iam_role.api_deploy.arn}"
+  service_role_arn       = aws_iam_role.api_deploy.arn
 
   auto_rollback_configuration {
     enabled = true
@@ -418,22 +423,22 @@ resource "aws_codedeploy_deployment_group" "main" {
   }
 
   ecs_service {
-    cluster_name = "${aws_ecs_cluster.main.name}"
-    service_name = "${aws_ecs_service.api.name}"
+    cluster_name = aws_ecs_cluster.main.name
+    service_name = aws_ecs_service.api.name
   }
 
   load_balancer_info {
     target_group_pair_info {
       prod_traffic_route {
-        listener_arns = ["${aws_lb_listener.api.arn}"]
+        listener_arns = [aws_lb_listener.api.arn]
       }
 
       target_group {
-        name = "${aws_lb_target_group.blue.name}"
+        name = aws_lb_target_group.blue.name
       }
 
       target_group {
-        name = "${aws_lb_target_group.green.name}"
+        name = aws_lb_target_group.green.name
       }
     }
   }
@@ -454,10 +459,10 @@ resource "aws_s3_bucket" "source_parameters" {
 }
 
 resource "aws_s3_bucket_object" "api_deploy_params" {
-  bucket = "${aws_s3_bucket.source_parameters.bucket}"
-  etag   = "${data.archive_file.api_deploy_params.output_md5}"
-  key    = "${local.deploy_params_key}"
-  source = "${data.archive_file.api_deploy_params.output_path}"
+  bucket = aws_s3_bucket.source_parameters.bucket
+  etag   = data.archive_file.api_deploy_params.output_md5
+  key    = local.deploy_params_key
+  source = data.archive_file.api_deploy_params.output_path
 }
 
 ################################################################################
@@ -481,17 +486,18 @@ resource "aws_iam_role" "codepipeline" {
   ]
 }
 EOF
+
 }
 
 resource "aws_iam_role_policy_attachment" "codepipeline_policy" {
-  policy_arn = "${aws_iam_policy.codepipeline_policy.arn}"
-  role       = "${aws_iam_role.codepipeline.name}"
+policy_arn = aws_iam_policy.codepipeline_policy.arn
+role = aws_iam_role.codepipeline.name
 }
 
 resource "aws_iam_policy" "codepipeline_policy" {
-  name = "${var.app_slug}-api-code-pipeline-artifacts"
+name = "${var.app_slug}-api-code-pipeline-artifacts"
 
-  policy = <<EOF
+policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -521,31 +527,32 @@ resource "aws_iam_policy" "codepipeline_policy" {
   ]
 }
 EOF
+
 }
 
 resource "aws_iam_role_policy_attachment" "codepipeline_ecs_deploy" {
   policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
-  role       = "${aws_iam_role.codepipeline.name}"
+  role       = aws_iam_role.codepipeline.name
 }
 
 resource "aws_iam_role_policy_attachment" "codepipeline_ecs_deploy2" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
-  role       = "${aws_iam_role.codepipeline.name}"
+  role       = aws_iam_role.codepipeline.name
 }
 
 resource "aws_iam_role" "api_task_execution_role" {
-  assume_role_policy = "${data.aws_iam_policy_document.ecs_assume_role_policy.json}"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume_role_policy.json
   name               = "${var.app_slug}-ecs-task-execution"
 }
 
 resource "aws_iam_role_policy_attachment" "AWSECSRole" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-  role       = "${aws_iam_role.api_task_execution_role.name}"
+  role       = aws_iam_role.api_task_execution_role.name
 }
 
 resource "aws_iam_role_policy_attachment" "task_ssm_access" {
-  policy_arn = "${aws_iam_policy.task_ssm_access.arn}"
-  role       = "${aws_iam_role.api_task_execution_role.name}"
+  policy_arn = aws_iam_policy.task_ssm_access.arn
+  role       = aws_iam_role.api_task_execution_role.name
 }
 
 resource "aws_iam_policy" "task_ssm_access" {
@@ -567,27 +574,28 @@ resource "aws_iam_policy" "task_ssm_access" {
   ]
 }
 EOF
+
 }
 
 resource "aws_iam_role" "api_task_role" {
-  assume_role_policy = "${data.aws_iam_policy_document.ecs_assume_role_policy.json}"
-  name               = "${var.app_slug}-ecs-api-task"
+assume_role_policy = data.aws_iam_policy_document.ecs_assume_role_policy.json
+name = "${var.app_slug}-ecs-api-task"
 }
 
 resource "aws_iam_role" "api_deploy" {
-  assume_role_policy = "${data.aws_iam_policy_document.codedeploy_assume_role_policy.json}"
-  name               = "${var.app_slug}-codedeploy"
+assume_role_policy = data.aws_iam_policy_document.codedeploy_assume_role_policy.json
+name = "${var.app_slug}-codedeploy"
 }
 
 resource "aws_iam_role_policy_attachment" "AWSCodeDeployRole" {
-  policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
-  role       = "${aws_iam_role.api_deploy.name}"
+policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
+role = aws_iam_role.api_deploy.name
 }
 
 resource "aws_iam_role_policy" "api_deploy_s3" {
-  role = "${aws_iam_role.api_deploy.name}"
+role = aws_iam_role.api_deploy.name
 
-  policy = <<EOF
+policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -602,6 +610,7 @@ resource "aws_iam_role_policy" "api_deploy_s3" {
   ]
 }
 EOF
+
 }
 
 resource "aws_iam_role" "codebuild" {
@@ -621,12 +630,13 @@ resource "aws_iam_role" "codebuild" {
   ]
 }
 EOF
+
 }
 
 resource "aws_iam_role_policy" "codebuild_artifacts" {
-  role = "${aws_iam_role.codebuild.name}"
+role = aws_iam_role.codebuild.name
 
-  policy = <<EOF
+policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -646,10 +656,11 @@ resource "aws_iam_role_policy" "codebuild_artifacts" {
   ]
 }
 EOF
+
 }
 
 resource "aws_iam_role_policy" "codebuild_log" {
-  role = "${aws_iam_role.codebuild.name}"
+  role = aws_iam_role.codebuild.name
 
   policy = <<POLICY
 {
@@ -669,11 +680,12 @@ resource "aws_iam_role_policy" "codebuild_log" {
   ]
 }
 POLICY
+
 }
 
 resource "aws_iam_role_policy_attachment" "codebuild_ecs" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
-  role       = "${aws_iam_role.codebuild.name}"
+policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+role = aws_iam_role.codebuild.name
 }
 
 ################################################################################
@@ -681,14 +693,14 @@ resource "aws_iam_role_policy_attachment" "codebuild_ecs" {
 ################################################################################
 
 resource "aws_iam_role_policy_attachment" "lambda" {
-  policy_arn = "${aws_iam_policy.lambda.arn}"
-  role       = "${module.migrate_hook.iam_role}"
+policy_arn = aws_iam_policy.lambda.arn
+role = module.migrate_hook.iam_role
 }
 
 resource "aws_iam_policy" "lambda" {
-  name = "${var.app_slug}-lambda-migrate"
+name = "${var.app_slug}-lambda-migrate"
 
-  policy = <<EOF
+policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -734,4 +746,6 @@ resource "aws_iam_policy" "lambda" {
   ]
 }
 EOF
+
 }
+

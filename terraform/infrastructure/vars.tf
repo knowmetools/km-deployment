@@ -19,7 +19,7 @@ variable "apple_receipt_validation_endpoints" {
   }
 
   description = "A map containing the production and sandbox endpoints for Apple's receipt validation service."
-  type        = "map"
+  type        = map(string)
 }
 
 variable "apple_receipt_validation_mode" {
@@ -107,5 +107,6 @@ variable "webserver_instance_type" {
 variable "webserver_sg_rules" {
   default     = [80, 443]
   description = "A list of allowed egress/ingress ports for webservers."
-  type        = "list"
+  type        = list(string)
 }
+

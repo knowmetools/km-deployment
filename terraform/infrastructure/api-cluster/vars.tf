@@ -1,13 +1,13 @@
 variable "api_environment" {
   default     = []
   description = "A list of key-value pairs to provide to the API service as environment variables."
-  type        = "list"
+  type        = list(object({ name = string, value = string }))
 }
 
 variable "api_secrets" {
   default     = []
   description = "A list of key-value pairs of secrets to provide to the API service as environment variables."
-  type        = "list"
+  type        = list(object({ name = string, valueFrom = string }))
 }
 
 variable "app_slug" {
@@ -22,7 +22,8 @@ variable "certificate_arn" {
   description = "The ARN of the certificate used for HTTPS connections to the API."
 }
 
-variable "django_admin_email" {}
+variable "django_admin_email" {
+}
 
 variable "django_admin_password_ssm_name" {
   description = "The name of the SSM parameter containing the admin user to create during deployments."
@@ -43,9 +44,10 @@ variable "source_repo" {
 
 variable "subnet_ids" {
   description = "A list of the subnets to create cluster resources in."
-  type        = "list"
+  type        = list(string)
 }
 
 variable "vpc_id" {
   description = "The ID of the VPC to create the cluster in."
 }
+

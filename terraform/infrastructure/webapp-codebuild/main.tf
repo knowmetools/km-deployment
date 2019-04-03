@@ -1,9 +1,9 @@
 data "aws_s3_bucket" "deploy" {
-  bucket = "${var.deploy_bucket}"
+  bucket = var.deploy_bucket
 }
 
 data "github_repository" "webapp" {
-  name = "${var.source_repository}"
+  name = var.source_repository
 }
 
 ################################################################################
@@ -12,10 +12,10 @@ data "github_repository" "webapp" {
 
 resource "aws_codepipeline" "webapp" {
   name     = "${var.app_slug}-web-app-pipeline"
-  role_arn = "${aws_iam_role.codepipeline.arn}"
+  role_arn = aws_iam_role.codepipeline.arn
 
   artifact_store {
-    location = "${aws_s3_bucket.artifacts.bucket}"
+    location = aws_s3_bucket.artifacts.bucket
     type     = "S3"
   }
 
@@ -31,9 +31,9 @@ resource "aws_codepipeline" "webapp" {
       version          = "1"
 
       configuration = {
-        Branch = "${var.source_branch}"
+        Branch = var.source_branch
         Owner  = "knowmetools"
-        Repo   = "${data.github_repository.webapp.name}"
+        Repo   = data.github_repository.webapp.name
       }
     }
   }
@@ -51,7 +51,7 @@ resource "aws_codepipeline" "webapp" {
       version          = "1"
 
       configuration = {
-        ProjectName = "${aws_codebuild_project.webapp.name}"
+        ProjectName = aws_codebuild_project.webapp.name
       }
     }
   }
@@ -67,8 +67,8 @@ resource "aws_codepipeline" "webapp" {
       provider        = "S3"
       version         = "1"
 
-      configuration {
-        BucketName = "${var.deploy_bucket}"
+      configuration = {
+        BucketName = var.deploy_bucket
         Extract    = "true"
       }
     }
@@ -79,10 +79,10 @@ resource "aws_codepipeline_webhook" "bar" {
   name            = "${var.app_slug}-web-app-hook"
   authentication  = "GITHUB_HMAC"
   target_action   = "Source"
-  target_pipeline = "${aws_codepipeline.webapp.name}"
+  target_pipeline = aws_codepipeline.webapp.name
 
   authentication_configuration {
-    secret_token = "${random_string.webhook_secret.result}"
+    secret_token = random_string.webhook_secret.result
   }
 
   filter {
@@ -92,14 +92,14 @@ resource "aws_codepipeline_webhook" "bar" {
 }
 
 resource "github_repository_webhook" "bar" {
-  repository = "${data.github_repository.webapp.name}"
+  repository = data.github_repository.webapp.name
   name       = "web"
 
   configuration {
-    url          = "${aws_codepipeline_webhook.bar.url}"
+    url          = aws_codepipeline_webhook.bar.url
     content_type = "json"
     insecure_ssl = true
-    secret       = "${random_string.webhook_secret.result}"
+    secret       = random_string.webhook_secret.result
   }
 
   events = ["push"]
@@ -113,8 +113,8 @@ resource "aws_codebuild_project" "webapp" {
   build_timeout = 5
   description   = "Automatically deploy changes to the ${var.app_slug} web application."
   name          = "${var.app_slug}-webapp"
-  service_role  = "${aws_iam_role.codebuild.arn}"
-  tags          = "${var.base_tags}"
+  service_role  = aws_iam_role.codebuild.arn
+  tags          = var.base_tags
 
   artifacts {
     type = "CODEPIPELINE"
@@ -127,7 +127,7 @@ resource "aws_codebuild_project" "webapp" {
 
     environment_variable {
       name  = "REACT_APP_API_ROOT"
-      value = "${var.api_root}"
+      value = var.api_root
     }
   }
 
@@ -144,10 +144,12 @@ resource "aws_s3_bucket" "artifacts" {
   bucket_prefix = "${var.app_slug}-web-artifacts"
   force_destroy = true
 
-  tags = "${merge(
+  tags = merge(
     var.base_tags,
-    map("Name", "${var.app_slug} Web App Artifacts")
-  )}"
+    {
+      "Name" = "${var.app_slug} Web App Artifacts"
+    },
+  )
 }
 
 ################################################################################
@@ -171,13 +173,14 @@ resource "aws_iam_role" "codepipeline" {
   ]
 }
 EOF
+
 }
 
 resource "aws_iam_role_policy" "codepipeline_policy" {
-  name = "${var.app_slug}-web-app-code-pipeline-artifacts"
-  role = "${aws_iam_role.codepipeline.id}"
+name = "${var.app_slug}-web-app-code-pipeline-artifacts"
+role = aws_iam_role.codepipeline.id
 
-  policy = <<EOF
+policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -215,6 +218,7 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
   ]
 }
 EOF
+
 }
 
 ################################################################################
@@ -238,12 +242,13 @@ resource "aws_iam_role" "codebuild" {
   ]
 }
 EOF
+
 }
 
 resource "aws_iam_role_policy" "codebuild_artifacts" {
-  role = "${aws_iam_role.codebuild.name}"
+role = aws_iam_role.codebuild.name
 
-  policy = <<EOF
+policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -263,10 +268,11 @@ resource "aws_iam_role_policy" "codebuild_artifacts" {
   ]
 }
 EOF
+
 }
 
 resource "aws_iam_role_policy" "codebuild_log" {
-  role = "${aws_iam_role.codebuild.name}"
+  role = aws_iam_role.codebuild.name
 
   policy = <<POLICY
 {
@@ -286,6 +292,7 @@ resource "aws_iam_role_policy" "codebuild_log" {
   ]
 }
 POLICY
+
 }
 
 ################################################################################
@@ -293,5 +300,6 @@ POLICY
 ################################################################################
 
 resource "random_string" "webhook_secret" {
-  length = 32
+length = 32
 }
+

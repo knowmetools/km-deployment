@@ -1,4 +1,6 @@
 terraform {
+  required_version = ">= 0.12"
+
   backend "s3" {
     bucket               = "km-tf-state"
     dynamodb_table       = "terraformLock"
@@ -9,19 +11,18 @@ terraform {
 }
 
 provider "postgresql" {
-  database = "${data.terraform_remote_state.infrastructure.database_name}"
-  host     = "${data.terraform_remote_state.infrastructure.database_host}"
-  password = "${data.terraform_remote_state.infrastructure.database_admin_password}"
-  port     = "${data.terraform_remote_state.infrastructure.database_port}"
-  username = "${data.terraform_remote_state.infrastructure.database_admin_user}"
-  version  = "~> 0.1"
+  database = data.terraform_remote_state.infrastructure.outputs.database_name
+  host     = data.terraform_remote_state.infrastructure.outputs.database_host
+  password = data.terraform_remote_state.infrastructure.outputs.database_admin_password
+  port     = data.terraform_remote_state.infrastructure.outputs.database_port
+  username = data.terraform_remote_state.infrastructure.outputs.database_admin_user
 }
 
 data "terraform_remote_state" "infrastructure" {
   backend   = "s3"
-  workspace = "${terraform.workspace}"
+  workspace = terraform.workspace
 
-  config {
+  config = {
     bucket               = "km-tf-state"
     dynamodb_table       = "terraformLock"
     key                  = "know-me-api/infrastructure"
@@ -32,6 +33,7 @@ data "terraform_remote_state" "infrastructure" {
 
 resource "postgresql_role" "db_user" {
   login    = true
-  name     = "${data.terraform_remote_state.infrastructure.database_user}"
-  password = "${data.terraform_remote_state.infrastructure.database_password}"
+  name     = data.terraform_remote_state.infrastructure.outputs.database_user
+  password = data.terraform_remote_state.infrastructure.outputs.database_password
 }
+

@@ -7,9 +7,10 @@ variable "app_slug" {
 }
 
 variable "base_tags" {
-  default     = {}
+  default = {
+  }
   description = "A base set of tags to apply to all taggable resources in the module."
-  type        = "map"
+  type        = map(string)
 }
 
 variable "deploy_bucket" {
@@ -24,3 +25,4 @@ variable "source_branch" {
 variable "source_repository" {
   description = "The name (without organization) of the GitHub repository containing the source for the web app."
 }
+
