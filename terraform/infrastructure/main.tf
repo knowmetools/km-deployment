@@ -114,11 +114,12 @@ module "webapp" {
 module "webapp_build" {
   source = "./webapp-codebuild"
 
-  api_root          = "https://${local.api_domain}"
-  app_slug          = local.full_name_slug
-  base_tags         = local.base_tags
-  deploy_bucket     = module.webapp.s3_bucket
-  source_repository = "km-web"
+  api_root                     = "https://${local.api_domain}"
+  app_slug                     = local.full_name_slug
+  base_tags                    = local.base_tags
+  codepipeline_artifact_bucket = aws_s3_bucket.codepipeline_artifacts
+  deploy_bucket                = module.webapp.s3_bucket
+  source_repository            = "km-web"
 }
 
 ################################################################################
@@ -131,6 +132,7 @@ module "api_cluster" {
   app_slug                       = "km-${local.env}-api"
   aws_region                     = var.aws_region
   certificate_arn                = data.aws_acm_certificate.api.arn
+  codepipeline_artifact_bucket   = aws_s3_bucket.codepipeline_artifacts
   django_admin_email             = var.django_admin_email
   django_admin_password_ssm_name = aws_ssm_parameter.django_admin_password.name
   source_branch                  = var.api_source_branch
@@ -255,7 +257,7 @@ resource "aws_db_instance" "database" {
 }
 
 ################################################################################
-#                                 Static Files                                 #
+#                                  S3 Buckets                                  #
 ################################################################################
 
 resource "aws_s3_bucket" "static" {
@@ -275,6 +277,16 @@ resource "aws_s3_bucket" "static" {
     allowed_methods = ["GET"]
     allowed_origins = ["*"]
   }
+}
+
+resource "aws_s3_bucket" "codepipeline_artifacts" {
+  bucket        = "${local.full_name_slug}-codepipeline-artifacts"
+  force_destroy = true
+
+  tags = merge(
+    local.base_tags,
+    { Name = "${local.full_name} CodePipeline Artifacts" },
+  )
 }
 
 ################################################################################

@@ -15,7 +15,7 @@ resource "aws_codepipeline" "webapp" {
   role_arn = aws_iam_role.codepipeline.arn
 
   artifact_store {
-    location = aws_s3_bucket.artifacts.bucket
+    location = var.codepipeline_artifact_bucket.bucket
     type     = "S3"
   }
 
@@ -112,7 +112,7 @@ resource "github_repository_webhook" "bar" {
 module "webapp_codebuild" {
   source = "../codebuild-project"
 
-  artifact_s3_arn = aws_s3_bucket.artifacts.arn
+  artifact_s3_arn = var.codepipeline_artifact_bucket.arn
   description     = "Build ${var.app_slug}"
   image           = "aws/codebuild/nodejs:10.14.1"
   name            = var.app_slug
@@ -121,22 +121,6 @@ module "webapp_codebuild" {
   environment_variables = {
     REACT_APP_API_ROOT = var.api_root
   }
-}
-
-################################################################################
-#                              Artifact S3 Bucket                              #
-################################################################################
-
-resource "aws_s3_bucket" "artifacts" {
-  bucket_prefix = "${var.app_slug}-web-artifacts"
-  force_destroy = true
-
-  tags = merge(
-    var.base_tags,
-    {
-      "Name" = "${var.app_slug} Web App Artifacts"
-    },
-  )
 }
 
 ################################################################################
@@ -180,8 +164,8 @@ policy = <<EOF
         "s3:PutObject"
       ],
       "Resource": [
-        "${aws_s3_bucket.artifacts.arn}",
-        "${aws_s3_bucket.artifacts.arn}/*"
+        "${var.codepipeline_artifact_bucket.arn}",
+        "${var.codepipeline_artifact_bucket.arn}/*"
       ]
     },
     {

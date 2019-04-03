@@ -278,7 +278,7 @@ resource "aws_codepipeline" "api" {
   role_arn = aws_iam_role.codepipeline.arn
 
   artifact_store {
-    location = aws_s3_bucket.artifacts.bucket
+    location = var.codepipeline_artifact_bucket.bucket
     type     = "S3"
   }
 
@@ -361,7 +361,7 @@ resource "aws_codepipeline" "api" {
 module "api_codebuild" {
   source = "../codebuild-project"
 
-  artifact_s3_arn = aws_s3_bucket.artifacts.arn
+  artifact_s3_arn = var.codepipeline_artifact_bucket.arn
   description     = "Build the Docker image for ${var.app_slug}."
   image           = "aws/codebuild/docker:18.09.0"
   name            = "${var.app_slug}-docker-build"
@@ -427,11 +427,6 @@ resource "aws_codedeploy_deployment_group" "main" {
   }
 }
 
-resource "aws_s3_bucket" "artifacts" {
-  bucket_prefix = "${var.app_slug}-artifacts-"
-  force_destroy = true
-}
-
 resource "aws_s3_bucket" "source_parameters" {
   bucket        = "${var.app_slug}-parameters"
   force_destroy = true
@@ -493,8 +488,8 @@ policy = <<EOF
         "s3:PutObject"
       ],
       "Resource": [
-        "${aws_s3_bucket.artifacts.arn}",
-        "${aws_s3_bucket.artifacts.arn}/*",
+        "${var.codepipeline_artifact_bucket.arn}",
+        "${var.codepipeline_artifact_bucket.arn}/*",
         "${aws_s3_bucket.source_parameters.arn}",
         "${aws_s3_bucket.source_parameters.arn}/*"
       ]

@@ -22,6 +22,11 @@ variable "certificate_arn" {
   description = "The ARN of the certificate used for HTTPS connections to the API."
 }
 
+variable "codepipeline_artifact_bucket" {
+  description = "The S3 bucket used to store CodePipeline artifacts."
+  type        = object({ arn = string, bucket = string })
+}
+
 variable "django_admin_email" {
 }
 

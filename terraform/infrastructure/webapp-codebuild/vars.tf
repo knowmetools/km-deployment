@@ -7,10 +7,14 @@ variable "app_slug" {
 }
 
 variable "base_tags" {
-  default = {
-  }
+  default     = {}
   description = "A base set of tags to apply to all taggable resources in the module."
   type        = map(string)
+}
+
+variable "codepipeline_artifact_bucket" {
+  description = "The S3 bucket used to store CodePipeline artifacts."
+  type        = object({ arn = string, bucket = string })
 }
 
 variable "deploy_bucket" {
