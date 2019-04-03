@@ -97,11 +97,12 @@ data "archive_file" "lambda_source" {
 module "migrate_hook" {
   source = "../lambda"
 
-  function_name  = "${var.app_slug}-migrate-hook"
-  handler        = "lambda_handler.handler"
-  runtime        = "python3.7"
-  source_archive = data.archive_file.lambda_source.output_path
-  timeout        = 120
+  function_name       = "${var.app_slug}-migrate-hook"
+  handler             = "lambda_handler.handler"
+  runtime             = "python3.7"
+  source_archive      = data.archive_file.lambda_source.output_path
+  source_archive_hash = data.archive_file.lambda_source.output_base64sha256
+  timeout             = 120
 
   environment_variables = {
     ADMIN_EMAIL             = var.django_admin_email

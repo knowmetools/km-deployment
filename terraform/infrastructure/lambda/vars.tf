@@ -21,6 +21,10 @@ variable "source_archive" {
   description = "The path to the source archive to use as the source of the lambda function."
 }
 
+variable "source_archive_hash" {
+  description = "The base 64 encoded SHA 256 hash of the source archive."
+}
+
 variable "timeout" {
   description = "The number of seconds before the function times out."
 }

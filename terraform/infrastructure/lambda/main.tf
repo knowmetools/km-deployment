@@ -1,35 +1,31 @@
-resource "aws_iam_role" "iam_for_lambda" {
-  name = var.function_name
+data "aws_iam_policy_document" "lambda_assume_role_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
 
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "lambda.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
+    principals {
+      identifiers = ["lambda.amazonaws.com"]
+      type        = "Service"
     }
-  ]
+  }
 }
-EOF
+
+resource "aws_iam_role" "iam_for_lambda" {
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role_policy.json
+  name               = var.function_name
 
 }
 
 resource "aws_lambda_function" "lambda" {
-filename = var.source_archive
-function_name = var.function_name
-handler = var.handler
-role = aws_iam_role.iam_for_lambda.arn
-runtime = var.runtime
-source_code_hash = filebase64sha256(var.source_archive)
-timeout = var.timeout
+  filename         = var.source_archive
+  function_name    = var.function_name
+  handler          = var.handler
+  role             = aws_iam_role.iam_for_lambda.arn
+  runtime          = var.runtime
+  source_code_hash = var.source_archive_hash
+  timeout          = var.timeout
 
-environment {
-variables = var.environment_variables
-}
+  environment {
+    variables = var.environment_variables
+  }
 }
 
