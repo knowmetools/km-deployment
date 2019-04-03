@@ -146,25 +146,20 @@ resource "aws_route53_record" "root_domain" {
 
 resource "aws_s3_bucket_policy" "cloudfront" {
   bucket = aws_s3_bucket.source.id
+  policy = data.aws_iam_policy_document.cloudfront_s3_access.json
 
-  policy = <<EOF
-{
-  "Version":"2012-10-17",
-  "Id":"PolicyForCloudFrontPrivateContent",
-  "Statement":[
-    {
-      "Sid":" Grant a CloudFront Origin Identity access to support private content",
-      "Effect":"Allow",
-      "Principal": {
-        "CanonicalUser": "${aws_cloudfront_origin_access_identity.origin_access_identity.s3_canonical_user_id}"
-      },
-      "Action":"s3:GetObject",
-      "Resource":"arn:aws:s3:::${aws_s3_bucket.source.id}/*"
-    }
-  ]
 }
-EOF
 
+data "aws_iam_policy_document" "cloudfront_s3_access" {
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["arn:aws:s3:::${aws_s3_bucket.source.id}/*"]
+
+    principals {
+      identifiers = [aws_cloudfront_origin_access_identity.origin_access_identity.iam_arn]
+      type        = "AWS"
+    }
+  }
 }
 
 resource "aws_cloudfront_origin_access_identity" "origin_access_identity" {
@@ -175,14 +170,14 @@ resource "aws_cloudfront_origin_access_identity" "origin_access_identity" {
 ################################################################################
 
 output "s3_bucket" {
-value = aws_s3_bucket.source.bucket
+  value = aws_s3_bucket.source.bucket
 }
 
 output "s3_bucket_arn" {
-value = aws_s3_bucket.source.arn
+  value = aws_s3_bucket.source.arn
 }
 
 output "cloudfront_url" {
-value = aws_route53_record.root_domain.fqdn
+  value = aws_route53_record.root_domain.fqdn
 }
 
