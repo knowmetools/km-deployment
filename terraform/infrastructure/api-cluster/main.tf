@@ -329,7 +329,7 @@ resource "aws_codepipeline" "api" {
       version          = "1"
 
       configuration = {
-        ProjectName = aws_codebuild_project.api.name
+        ProjectName = module.api_codebuild.project_name
       }
     }
   }
@@ -358,35 +358,18 @@ resource "aws_codepipeline" "api" {
   }
 }
 
-resource "aws_codebuild_project" "api" {
-  build_timeout = 5
-  description   = "Build the Docker image for the ${var.app_slug} API."
-  name          = var.app_slug
-  service_role  = aws_iam_role.codebuild.arn
+module "api_codebuild" {
+  source = "../codebuild-project"
 
-  artifacts {
-    type = "CODEPIPELINE"
-  }
+  artifact_s3_arn = aws_s3_bucket.artifacts.arn
+  description     = "Build the Docker image for ${var.app_slug}."
+  image           = "aws/codebuild/docker:18.09.0"
+  name            = "${var.app_slug}-docker-build"
+  privileged_mode = true
 
-  environment {
-    compute_type    = "BUILD_GENERAL1_SMALL"
-    image           = "aws/codebuild/docker:18.09.0"
-    privileged_mode = true
-    type            = "LINUX_CONTAINER"
-
-    environment_variable {
-      name  = "ECR_URI"
-      value = aws_ecr_repository.api.repository_url
-    }
-
-    environment_variable {
-      name  = "SERVICE_NAME"
-      value = local.api_web_container_name
-    }
-  }
-
-  source {
-    type = "CODEPIPELINE"
+  environment_variables = {
+    ECR_URI      = aws_ecr_repository.api.repository_url
+    SERVICE_NAME = local.api_web_container_name
   }
 }
 
@@ -574,28 +557,27 @@ resource "aws_iam_policy" "task_ssm_access" {
   ]
 }
 EOF
-
 }
 
 resource "aws_iam_role" "api_task_role" {
-assume_role_policy = data.aws_iam_policy_document.ecs_assume_role_policy.json
-name = "${var.app_slug}-ecs-api-task"
+  assume_role_policy = data.aws_iam_policy_document.ecs_assume_role_policy.json
+  name = "${var.app_slug}-ecs-api-task"
 }
 
 resource "aws_iam_role" "api_deploy" {
-assume_role_policy = data.aws_iam_policy_document.codedeploy_assume_role_policy.json
-name = "${var.app_slug}-codedeploy"
+  assume_role_policy = data.aws_iam_policy_document.codedeploy_assume_role_policy.json
+  name = "${var.app_slug}-codedeploy"
 }
 
 resource "aws_iam_role_policy_attachment" "AWSCodeDeployRole" {
-policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
-role = aws_iam_role.api_deploy.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
+  role = aws_iam_role.api_deploy.name
 }
 
 resource "aws_iam_role_policy" "api_deploy_s3" {
-role = aws_iam_role.api_deploy.name
+  role = aws_iam_role.api_deploy.name
 
-policy = <<EOF
+  policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -613,79 +595,10 @@ EOF
 
 }
 
-resource "aws_iam_role" "codebuild" {
-  name = "${var.app_slug}-codebuild-api"
-
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "codebuild.amazonaws.com"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
-
-}
-
-resource "aws_iam_role_policy" "codebuild_artifacts" {
-role = aws_iam_role.codebuild.name
-
-policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect":"Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:GetObjectVersion",
-        "s3:GetBucketVersioning",
-        "s3:PutObject"
-      ],
-      "Resource": [
-        "${aws_s3_bucket.artifacts.arn}",
-        "${aws_s3_bucket.artifacts.arn}/*"
-      ]
-    }
-  ]
-}
-EOF
-
-}
-
-resource "aws_iam_role_policy" "codebuild_log" {
-  role = aws_iam_role.codebuild.name
-
-  policy = <<POLICY
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Resource": [
-        "*"
-      ],
-      "Action": [
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-      ]
-    }
-  ]
-}
-POLICY
-
-}
-
+# TODO: Limit permissions here
 resource "aws_iam_role_policy_attachment" "codebuild_ecs" {
-policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
-role = aws_iam_role.codebuild.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+  role       = module.api_codebuild.service_role
 }
 
 ################################################################################
@@ -693,14 +606,14 @@ role = aws_iam_role.codebuild.name
 ################################################################################
 
 resource "aws_iam_role_policy_attachment" "lambda" {
-policy_arn = aws_iam_policy.lambda.arn
-role = module.migrate_hook.iam_role
+  policy_arn = aws_iam_policy.lambda.arn
+  role       = module.migrate_hook.iam_role
 }
 
 resource "aws_iam_policy" "lambda" {
-name = "${var.app_slug}-lambda-migrate"
+  name = "${var.app_slug}-lambda-migrate"
 
-policy = <<EOF
+  policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [

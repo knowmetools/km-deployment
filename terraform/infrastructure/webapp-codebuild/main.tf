@@ -51,7 +51,7 @@ resource "aws_codepipeline" "webapp" {
       version          = "1"
 
       configuration = {
-        ProjectName = aws_codebuild_project.webapp.name
+        ProjectName = module.webapp_codebuild.project_name
       }
     }
   }
@@ -109,30 +109,17 @@ resource "github_repository_webhook" "bar" {
 #                               CodeBuild Project                              #
 ################################################################################
 
-resource "aws_codebuild_project" "webapp" {
-  build_timeout = 5
-  description   = "Automatically deploy changes to the ${var.app_slug} web application."
-  name          = "${var.app_slug}-webapp"
-  service_role  = aws_iam_role.codebuild.arn
-  tags          = var.base_tags
+module "webapp_codebuild" {
+  source = "../codebuild-project"
 
-  artifacts {
-    type = "CODEPIPELINE"
-  }
+  artifact_s3_arn = aws_s3_bucket.artifacts.arn
+  description     = "Build ${var.app_slug}"
+  image           = "aws/codebuild/nodejs:10.14.1"
+  name            = var.app_slug
+  tags            = var.base_tags
 
-  environment {
-    compute_type = "BUILD_GENERAL1_SMALL"
-    image        = "aws/codebuild/nodejs:10.14.1"
-    type         = "LINUX_CONTAINER"
-
-    environment_variable {
-      name  = "REACT_APP_API_ROOT"
-      value = var.api_root
-    }
-  }
-
-  source {
-    type = "CODEPIPELINE"
+  environment_variables = {
+    REACT_APP_API_ROOT = var.api_root
   }
 }
 
@@ -222,84 +209,10 @@ EOF
 }
 
 ################################################################################
-#                            IAM Role for CodeBuild                            #
-################################################################################
-
-resource "aws_iam_role" "codebuild" {
-  name = "${var.app_slug}-codebuild-webapp"
-
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "codebuild.amazonaws.com"
-      },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
-
-}
-
-resource "aws_iam_role_policy" "codebuild_artifacts" {
-role = aws_iam_role.codebuild.name
-
-policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect":"Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:GetObjectVersion",
-        "s3:GetBucketVersioning",
-        "s3:PutObject"
-      ],
-      "Resource": [
-        "${aws_s3_bucket.artifacts.arn}",
-        "${aws_s3_bucket.artifacts.arn}/*"
-      ]
-    }
-  ]
-}
-EOF
-
-}
-
-resource "aws_iam_role_policy" "codebuild_log" {
-  role = aws_iam_role.codebuild.name
-
-  policy = <<POLICY
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Resource": [
-        "*"
-      ],
-      "Action": [
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-      ]
-    }
-  ]
-}
-POLICY
-
-}
-
-################################################################################
 #                                    Secrets                                   #
 ################################################################################
 
 resource "random_string" "webhook_secret" {
-length = 32
+  length = 32
 }
 
