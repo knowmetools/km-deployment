@@ -1,5 +1,4 @@
 variable "api_source_branch" {
-  default     = "master"
   description = "The branch of the API repository to deploy."
 }
 
