@@ -73,11 +73,13 @@ def handler(event, context):
     subnet_ids_str = os.getenv('SUBNETS', '')
     subnet_ids = subnet_ids_str.split(',') if subnet_ids_str else []
 
-    # Admin credential information
+    # Admin credentials. Passwords are pulled from SSM.
     admin_email = os.getenv('ADMIN_EMAIL')
-    # The password of the admin user to create during the deployment is
-    # pulled from the following SSM parameter.
     admin_password_ssm_name = os.getenv('ADMIN_PASSWORD_SSM_NAME')
+    database_admin_password_ssm_name = os.getenv(
+        'DATABASE_ADMIN_PASSWORD_SSM_NAME'
+    )
+    database_admin_user = os.getenv('DATABASE_ADMIN_USER')
 
     # The deployment ID and execution ID are used to pull further
     # information and report statuses.
@@ -144,10 +146,10 @@ def handler(event, context):
         execution_role,
     )
 
-    # Pull admin password from SSM
-    admin_password = ssm.get_parameter(
-        Name=admin_password_ssm_name,
-        WithDecryption=True,
+    # Pull admin passwords from SSM
+    admin_password = get_secure_parameter(admin_password_ssm_name)
+    database_admin_password = get_secure_parameter(
+        database_admin_password_ssm_name
     )
 
     # Using the parameters we have pulled from the previous steps, we
@@ -169,8 +171,16 @@ def handler(event, context):
                         },
                         {
                             'name': 'ADMIN_PASSWORD',
-                            'value': admin_password['Parameter']['Value'],
-                        }
+                            'value': admin_password,
+                        },
+                        {
+                            'name': 'DATABASE_ADMIN_PASSWORD',
+                            'value': database_admin_password,
+                        },
+                        {
+                            'name': 'DATABASE_ADMIN_USER',
+                            'value': database_admin_user,
+                        },
                     ],
                     'name': container_name,
                 },
@@ -237,3 +247,22 @@ def get_app_info(deployment_id):
     revision_hash = info['revision']['string']['sha256']
 
     return application, revision_hash
+
+
+def get_secure_parameter(parameter_name):
+    """
+    Get a parameter of type 'SecureString' from SSM.
+
+    Args:
+        parameter_name:
+            The name of the parameter to retrieve.
+
+    Returns:
+        The plaintext value of the parameter.
+    """
+    param_info = ssm.get_parameter(
+        Name=parameter_name,
+        WithDecryption=True,
+    )
+
+    return param_info['Parameter']['Value']

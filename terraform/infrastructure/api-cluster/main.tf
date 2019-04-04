@@ -105,12 +105,14 @@ module "migrate_hook" {
   timeout             = 120
 
   environment_variables = {
-    ADMIN_EMAIL             = var.django_admin_email
-    ADMIN_PASSWORD_SSM_NAME = var.django_admin_password_ssm_name
-    CLUSTER                 = aws_ecs_cluster.main.name
-    CONTAINER_NAME          = local.api_web_container_name
-    SECURITY_GROUPS         = aws_security_group.all.id
-    SUBNETS                 = join(",", var.subnet_ids)
+    ADMIN_EMAIL                      = var.django_admin_email
+    ADMIN_PASSWORD_SSM_NAME          = var.django_admin_password_ssm_name
+    CLUSTER                          = aws_ecs_cluster.main.name
+    CONTAINER_NAME                   = local.api_web_container_name
+    DATABASE_ADMIN_PASSWORD_SSM_NAME = var.database_admin_password_ssm_name
+    DATABASE_ADMIN_USER              = var.database_admin_user
+    SECURITY_GROUPS                  = aws_security_group.all.id
+    SUBNETS                          = join(",", var.subnet_ids)
   }
 }
 
@@ -653,7 +655,10 @@ resource "aws_iam_policy" "lambda" {
     {
       "Effect": "Allow",
       "Action": "ssm:GetParameter",
-      "Resource": "arn:aws:ssm:*:*:parameter${var.django_admin_password_ssm_name}"
+      "Resource": [
+        "arn:aws:ssm:*:*:parameter${var.django_admin_password_ssm_name}",
+        "arn:aws:ssm:*:*:parameter${var.database_admin_password_ssm_name}"
+      ]
     }
   ]
 }

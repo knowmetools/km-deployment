@@ -115,17 +115,19 @@ module "webapp_build" {
 module "api_cluster" {
   source = "./api-cluster"
 
-  app_slug                       = "${local.full_name_slug}-api"
-  aws_region                     = var.aws_region
-  certificate_arn                = data.aws_acm_certificate.api.arn
-  codepipeline_artifact_bucket   = aws_s3_bucket.codepipeline_artifacts
-  django_admin_email             = var.django_admin_email
-  django_admin_password_ssm_name = aws_ssm_parameter.django_admin_password.name
-  source_branch                  = var.api_source_branch
-  source_owner                   = var.github_organization
-  source_repo                    = var.api_source_repo
-  subnet_ids                     = data.aws_subnet_ids.default.ids
-  vpc_id                         = data.aws_vpc.default.id
+  app_slug                         = "${local.full_name_slug}-api"
+  aws_region                       = var.aws_region
+  certificate_arn                  = data.aws_acm_certificate.api.arn
+  codepipeline_artifact_bucket     = aws_s3_bucket.codepipeline_artifacts
+  database_admin_password_ssm_name = aws_ssm_parameter.db_admin_password.name
+  database_admin_user              = var.database_admin_user
+  django_admin_email               = var.django_admin_email
+  django_admin_password_ssm_name   = aws_ssm_parameter.django_admin_password.name
+  source_branch                    = var.api_source_branch
+  source_owner                     = var.github_organization
+  source_repo                      = var.api_source_repo
+  subnet_ids                       = data.aws_subnet_ids.default.ids
+  vpc_id                           = data.aws_vpc.default.id
 
   # Environment
   api_environment = [
@@ -340,6 +342,12 @@ resource "random_string" "django_admin_password" {
 
 resource "random_string" "django_secret_key" {
   length = 50
+}
+
+resource "aws_ssm_parameter" "db_admin_password" {
+  name  = "/km-api/${local.env}/db/admin-password"
+  type  = "SecureString"
+  value = random_string.db_admin_password.result
 }
 
 resource "aws_ssm_parameter" "db_password" {

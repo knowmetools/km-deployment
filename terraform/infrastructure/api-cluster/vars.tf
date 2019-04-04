@@ -27,7 +27,16 @@ variable "codepipeline_artifact_bucket" {
   type        = object({ arn = string, bucket = string })
 }
 
+variable "database_admin_password_ssm_name" {
+  description = "The name of the SSM parameter where the database admin's password is stored."
+}
+
+variable "database_admin_user" {
+  description = "The name of the admin database role."
+}
+
 variable "django_admin_email" {
+  description = "The email address of the admin user to create for the API."
 }
 
 variable "django_admin_password_ssm_name" {
