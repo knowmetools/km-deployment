@@ -225,7 +225,7 @@ resource "aws_lb_listener" "api" {
 }
 
 resource "aws_lb_target_group" "blue" {
-  name        = "${var.app_slug}-lb-target-blue"
+  name        = "${var.app_slug}-blue"
   port        = 80
   protocol    = "HTTP"
   target_type = "ip"
@@ -238,7 +238,7 @@ resource "aws_lb_target_group" "blue" {
 }
 
 resource "aws_lb_target_group" "green" {
-  name        = "${var.app_slug}-lb-target-green"
+  name        = "${var.app_slug}-green"
   port        = 80
   protocol    = "HTTP"
   target_type = "ip"
