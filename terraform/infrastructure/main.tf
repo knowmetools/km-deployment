@@ -37,7 +37,7 @@ provider "template" {
 locals {
   env            = terraform.workspace
   full_name      = "${var.application_name} ${local.env}"
-  full_name_slug = lower(replace(local.full_name, " ", "-"))
+  full_name_slug = lower("${var.application_slug}-${local.env}")
   api_subdomain  = terraform.workspace == "production" ? "toolbox" : "${terraform.workspace}.toolbox"
   api_domain     = "${local.api_subdomain}.${var.domain}"
   web_domain     = terraform.workspace == "production" ? "app.${var.domain}" : "${terraform.workspace}.app.${var.domain}"
@@ -90,7 +90,9 @@ module "webapp" {
   source = "./cloudfront-dist"
 
   acm_certificate_arn = data.aws_acm_certificate.webapp.arn
-  application         = "Know Me Webapp ${terraform.workspace}"
+  app_name            = "${local.full_name} Web App"
+  app_slug            = "${local.full_name_slug}-web-app"
+  base_tags           = local.base_tags
   domain              = local.web_domain
   domain_zone_id      = data.aws_route53_zone.main.id
 }
@@ -99,7 +101,7 @@ module "webapp_build" {
   source = "./webapp-codebuild"
 
   api_root                     = "https://${local.api_domain}"
-  app_slug                     = local.full_name_slug
+  app_slug                     = "${local.full_name_slug}-web-app"
   base_tags                    = local.base_tags
   codepipeline_artifact_bucket = aws_s3_bucket.codepipeline_artifacts
   deploy_bucket                = module.webapp.s3_bucket
@@ -113,7 +115,7 @@ module "webapp_build" {
 module "api_cluster" {
   source = "./api-cluster"
 
-  app_slug                       = "km-${local.env}-api"
+  app_slug                       = "${local.full_name_slug}-api"
   aws_region                     = var.aws_region
   certificate_arn                = data.aws_acm_certificate.api.arn
   codepipeline_artifact_bucket   = aws_s3_bucket.codepipeline_artifacts
@@ -224,6 +226,7 @@ resource "aws_db_instance" "database" {
   engine                              = "postgres"
   final_snapshot_identifier           = "${local.full_name_slug}-final"
   iam_database_authentication_enabled = true
+  identifier                          = "${local.full_name_slug}-api"
   instance_class                      = var.database_instance_type
   name                                = var.database_name
   password                            = random_string.db_admin_password.result
@@ -235,7 +238,7 @@ resource "aws_db_instance" "database" {
   tags = merge(
     local.base_tags,
     {
-      "Name" = local.full_name
+      "Name" = "${local.full_name} API Database"
     },
   )
 }
@@ -246,14 +249,14 @@ resource "aws_db_instance" "database" {
 
 resource "aws_s3_bucket" "static" {
   acl           = "public-read"
-  bucket_prefix = "${local.full_name_slug}-static"
+  bucket        = "${local.full_name_slug}-api-static"
   force_destroy = true
   region        = var.aws_region
 
   tags = merge(
     local.base_tags,
     {
-      "Name" = "${local.full_name} Static Files"
+      Name = "${local.full_name} Static Files"
     },
   )
 
@@ -286,15 +289,6 @@ resource "aws_security_group" "db" {
   )
 }
 
-resource "aws_security_group" "web" {
-  tags = merge(
-    local.base_tags,
-    {
-      "Name" = "${local.full_name} Webservers"
-    },
-  )
-}
-
 # Database Rules
 
 resource "aws_security_group_rule" "db_ingress" {
@@ -302,51 +296,7 @@ resource "aws_security_group_rule" "db_ingress" {
   from_port         = var.database_port
   protocol          = "tcp"
   security_group_id = aws_security_group.db.id
-
-  //  source_security_group_id = "${aws_security_group.web.id}"
-  to_port = var.database_port
-  type    = "ingress"
-}
-
-# Webserver Rules
-
-resource "aws_security_group_rule" "web_database" {
-  from_port                = var.database_port
-  protocol                 = "tcp"
-  security_group_id        = aws_security_group.web.id
-  source_security_group_id = aws_security_group.db.id
-  to_port                  = var.database_port
-  type                     = "egress"
-}
-
-resource "aws_security_group_rule" "web_out" {
-  count = length(var.webserver_sg_rules)
-
-  cidr_blocks       = ["0.0.0.0/0"]
-  from_port         = element(var.webserver_sg_rules, count.index)
-  protocol          = "tcp"
-  security_group_id = aws_security_group.web.id
-  to_port           = element(var.webserver_sg_rules, count.index)
-  type              = "egress"
-}
-
-resource "aws_security_group_rule" "web_in" {
-  count = length(var.webserver_sg_rules)
-
-  cidr_blocks       = ["0.0.0.0/0"]
-  from_port         = element(var.webserver_sg_rules, count.index)
-  protocol          = "tcp"
-  security_group_id = aws_security_group.web.id
-  to_port           = element(var.webserver_sg_rules, count.index)
-  type              = "ingress"
-}
-
-resource "aws_security_group_rule" "web_ssh" {
-  cidr_blocks       = ["0.0.0.0/0"]
-  from_port         = 22
-  protocol          = "tcp"
-  security_group_id = aws_security_group.web.id
-  to_port           = 22
+  to_port           = var.database_port
   type              = "ingress"
 }
 
@@ -453,15 +403,15 @@ EOF
 }
 
 resource "aws_iam_role_policy_attachment" "api_ses" {
-policy_arn = aws_iam_policy.api_ses.arn
-role = module.api_cluster.api_ecs_task_role
+  policy_arn = aws_iam_policy.api_ses.arn
+  role = module.api_cluster.api_ecs_task_role
 }
 
 resource "aws_iam_policy" "api_ses" {
-description = "Grants API tasks access to SES to send emails."
-name = "${local.full_name_slug}-api-ses-access"
+  description = "Grants API tasks access to SES to send emails."
+  name = "${local.full_name_slug}-api-ses-access"
 
-policy = <<EOF
+  policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [

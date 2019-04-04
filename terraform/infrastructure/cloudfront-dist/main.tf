@@ -7,16 +7,20 @@ variable "acm_certificate_arn" {
   type        = string
 }
 
-variable "application" {
+variable "app_name" {
   description = "The name of the application."
+  type        = string
+}
+
+variable "app_slug" {
+  description = "A slug used to identify the application"
   type        = string
 }
 
 variable "base_tags" {
   description = "A base set of tags to apply to resources."
-  default = {
-  }
-  type = map(string)
+  default     = {}
+  type        = map(string)
 }
 
 variable "domain" {
@@ -30,7 +34,6 @@ variable "domain_zone_id" {
 }
 
 locals {
-  app_slug     = lower(replace(var.application, " ", "-"))
   s3_origin_id = "S3Origin"
 }
 
@@ -39,13 +42,13 @@ locals {
 ################################################################################
 
 resource "aws_s3_bucket" "source" {
-  bucket_prefix = "${local.app_slug}-"
+  bucket        = var.app_slug
   force_destroy = true
 
   tags = merge(
     var.base_tags,
     {
-      "Name" = var.application
+      "Name" = var.app_name
     },
   )
 }
@@ -59,7 +62,7 @@ resource "aws_cloudfront_distribution" "s3" {
   tags = merge(
     var.base_tags,
     {
-      "Name" = "${var.application} Static Files"
+      Name = var.app_name
     },
   )
 
@@ -132,6 +135,7 @@ resource "aws_cloudfront_distribution" "s3" {
   }
 }
 
+# TODO: Create DNS record outside of module.
 resource "aws_route53_record" "root_domain" {
   name    = var.domain
   type    = "A"
@@ -147,13 +151,12 @@ resource "aws_route53_record" "root_domain" {
 resource "aws_s3_bucket_policy" "cloudfront" {
   bucket = aws_s3_bucket.source.id
   policy = data.aws_iam_policy_document.cloudfront_s3_access.json
-
 }
 
 data "aws_iam_policy_document" "cloudfront_s3_access" {
   statement {
     actions   = ["s3:GetObject"]
-    resources = ["arn:aws:s3:::${aws_s3_bucket.source.id}/*"]
+    resources = ["${aws_s3_bucket.source.arn}/*"]
 
     principals {
       identifiers = [aws_cloudfront_origin_access_identity.origin_access_identity.iam_arn]
@@ -162,8 +165,7 @@ data "aws_iam_policy_document" "cloudfront_s3_access" {
   }
 }
 
-resource "aws_cloudfront_origin_access_identity" "origin_access_identity" {
-}
+resource "aws_cloudfront_origin_access_identity" "origin_access_identity" {}
 
 ################################################################################
 #                                   Outputs                                    #

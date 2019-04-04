@@ -138,7 +138,7 @@ resource "aws_ecs_service" "api" {
   }
 
   load_balancer {
-    container_name   = "api-web-server"
+    container_name   = local.api_web_container_name
     container_port   = local.api_web_container_port
     target_group_arn = aws_lb_target_group.green.arn
   }
@@ -266,6 +266,7 @@ resource "aws_security_group" "all" {
   }
 }
 
+# TODO: Configure retention period
 resource "aws_cloudwatch_log_group" "api" {
   name = var.app_slug
 }
@@ -275,7 +276,7 @@ resource "aws_cloudwatch_log_group" "api" {
 ################################################################################
 
 resource "aws_codepipeline" "api" {
-  name     = "${var.app_slug}-webservers"
+  name     = "${var.app_slug}-web-servers"
   role_arn = aws_iam_role.codepipeline.arn
 
   artifact_store {
@@ -429,7 +430,7 @@ resource "aws_codedeploy_deployment_group" "main" {
 }
 
 resource "aws_s3_bucket" "source_parameters" {
-  bucket        = "${var.app_slug}-parameters"
+  bucket        = "${var.app_slug}-deployment-parameters"
   force_destroy = true
 
   versioning {
@@ -449,7 +450,7 @@ resource "aws_s3_bucket_object" "api_deploy_params" {
 ################################################################################
 
 resource "aws_iam_role" "codepipeline" {
-  name = "${var.app_slug}-api-code-pipeline"
+  name = "${var.app_slug}-code-pipeline"
 
   assume_role_policy = <<EOF
 {
@@ -469,14 +470,14 @@ EOF
 }
 
 resource "aws_iam_role_policy_attachment" "codepipeline_policy" {
-policy_arn = aws_iam_policy.codepipeline_policy.arn
-role = aws_iam_role.codepipeline.name
+  policy_arn = aws_iam_policy.codepipeline_policy.arn
+  role = aws_iam_role.codepipeline.name
 }
 
 resource "aws_iam_policy" "codepipeline_policy" {
-name = "${var.app_slug}-api-code-pipeline-artifacts"
+  name = "${var.app_slug}-code-pipeline-artifacts"
 
-policy = <<EOF
+  policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -521,7 +522,9 @@ resource "aws_iam_role_policy_attachment" "codepipeline_ecs_deploy2" {
 
 resource "aws_iam_role" "api_task_execution_role" {
   assume_role_policy = data.aws_iam_policy_document.ecs_assume_role_policy.json
-  name               = "${var.app_slug}-ecs-task-execution"
+  // TODO: Figure out why the following line crashes Terraform
+  //  name               = "${var.app_slug}-ecs-execution"
+  name = "${var.app_slug}-ecs-task-execution"
 }
 
 resource "aws_iam_role_policy_attachment" "AWSECSRole" {
@@ -535,7 +538,7 @@ resource "aws_iam_role_policy_attachment" "task_ssm_access" {
 }
 
 resource "aws_iam_policy" "task_ssm_access" {
-  name = "${var.app_slug}-ecs-api-task-execution"
+  name = "${var.app_slug}-ecs-execution-ssm-access"
 
   policy = <<EOF
 {
@@ -557,7 +560,7 @@ EOF
 
 resource "aws_iam_role" "api_task_role" {
   assume_role_policy = data.aws_iam_policy_document.ecs_assume_role_policy.json
-  name = "${var.app_slug}-ecs-api-task"
+  name = "${var.app_slug}-ecs-task"
 }
 
 resource "aws_iam_role" "api_deploy" {

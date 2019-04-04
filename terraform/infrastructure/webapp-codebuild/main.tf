@@ -11,7 +11,7 @@ data "github_repository" "webapp" {
 ################################################################################
 
 resource "aws_codepipeline" "webapp" {
-  name     = "${var.app_slug}-web-app-pipeline"
+  name     = "${var.app_slug}-pipeline"
   role_arn = aws_iam_role.codepipeline.arn
 
   artifact_store {
@@ -76,7 +76,7 @@ resource "aws_codepipeline" "webapp" {
 }
 
 resource "aws_codepipeline_webhook" "bar" {
-  name            = "${var.app_slug}-web-app-hook"
+  name            = "${var.app_slug}-hook"
   authentication  = "GITHUB_HMAC"
   target_action   = "Source"
   target_pipeline = aws_codepipeline.webapp.name
@@ -115,7 +115,7 @@ module "webapp_codebuild" {
   artifact_s3_arn = var.codepipeline_artifact_bucket.arn
   description     = "Build ${var.app_slug}"
   image           = "aws/codebuild/nodejs:10.14.1"
-  name            = var.app_slug
+  name            = "${var.app_slug}-build"
   tags            = var.base_tags
 
   environment_variables = {
@@ -128,7 +128,7 @@ module "webapp_codebuild" {
 ################################################################################
 
 resource "aws_iam_role" "codepipeline" {
-  name = "${var.app_slug}-web-app-code-pipeline"
+  name = "${var.app_slug}-code-pipeline"
 
   assume_role_policy = <<EOF
 {
@@ -148,10 +148,10 @@ EOF
 }
 
 resource "aws_iam_role_policy" "codepipeline_policy" {
-name = "${var.app_slug}-web-app-code-pipeline-artifacts"
-role = aws_iam_role.codepipeline.id
+  name = "${var.app_slug}-code-pipeline-artifacts"
+  role = aws_iam_role.codepipeline.id
 
-policy = <<EOF
+  policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [

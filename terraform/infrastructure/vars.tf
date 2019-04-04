@@ -31,8 +31,13 @@ variable "apple_shared_secret" {
 }
 
 variable "application_name" {
-  default     = "Know Me API"
+  default     = "Know Me"
   description = "The name of the application."
+}
+
+variable "application_slug" {
+  default     = "km"
+  description = "A base slug used when naming resources."
 }
 
 variable "application_db_user" {
@@ -97,16 +102,5 @@ variable "github_organization" {
 
 variable "sentry_dsn" {
   description = "The DSN of the Sentry project used to track errors for the API."
-}
-
-variable "webserver_instance_type" {
-  default     = "t2.micro"
-  description = "The EC2 instance type to use for the webserver."
-}
-
-variable "webserver_sg_rules" {
-  default     = [80, 443]
-  description = "A list of allowed egress/ingress ports for webservers."
-  type        = list(string)
 }
 
