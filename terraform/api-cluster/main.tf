@@ -88,7 +88,7 @@ data "archive_file" "lambda_source" {
 
   source {
     content = file(
-      "${path.module}/../../../scripts/api-migrate/lambda_handler.py",
+      "${path.module}/../../scripts/api-migrate/lambda_handler.py",
     )
     filename = "lambda_handler.py"
   }
