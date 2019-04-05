@@ -4,9 +4,9 @@ terraform {
   backend "s3" {
     bucket               = "km-tf-state"
     dynamodb_table       = "terraformLock"
-    key                  = "know-me-api/infrastructure"
+    key                  = "infrastructure.tfstate"
     region               = "us-east-1"
-    workspace_key_prefix = "know-me-api/infrastructure"
+    workspace_key_prefix = "know-me"
   }
 }
 
