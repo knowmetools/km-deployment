@@ -1,6 +1,48 @@
-# Know Me API Deployment
+# Know Me Deployment
 
-Deployment process for the Know Me API.
+Deployment process for the entire Know Me app ecosystem. Infrastructure is
+managed with [Terraform][terraform].
+
+## Overview
+
+This project is responsible for deploying all portions of the Know Me
+application that are available over the internet. For now these pieces include
+the [API][know-me-api] and [web app][know-me-web-app].
+
+We try to follow the philosophy of infrastructure being immutable and
+disposable. This manifests itself in our API being deployed as an ECS service
+that is self healing. The web application is deployed to an S3 bucket published
+using CloudFront.
+
+In terms of deploying new application versions, we try to maintain a continuous
+integration and deployment approach. The source repositories for these projects
+are monitored and we use a combination of CodeBuild, CodePipeline, and
+CodeDeploy to publish new versions.
+
+## Provisioning
+
+### Prerequisites
+
+* Terraform must be [downloaded][terraform-download] and accessible on your
+  `$PATH`. *Note we require Terraform 0.12+.*
+* You must have AWS credentials granting administrative access.
+
+### Updating the Infrastructure
+
+We use Terraform's concept of workspaces to separate our environments. Because
+of this, it is crucial you are on the correct workspace before applying changes.
+By convention we use the `production` workspace for our production
+infrastructure. All other workspaces can be spun up and down as desired.
+
+Here is an example of updating the infrastructure for the staging environment.
+
+```
+terraform workspace select staging
+terraform plan -out tfplan
+
+# After reviewing the plan to make sure there are no unexpected changes:
+terraform apply tfplan
+```
 
 ## Migrations Involving the Database or Media Files
 
@@ -154,3 +196,9 @@ the old S3 bucket using the AWS Console, CLI, etc.
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+
+[know-me-api]: https://github.com/knowmetools/km-api
+[know-me-web-app]: https://github.com/knowmetools/km-web
+[terraform]: https://www.terraform.io/
+[terraform-download]: https://www.terraform.io/downloads.html
