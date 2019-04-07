@@ -234,8 +234,10 @@ resource "aws_lb_target_group" "blue" {
   vpc_id      = var.vpc_id
 
   health_check {
-    matcher = "200-499"
-    path    = "/"
+    healthy_threshold   = 5
+    matcher             = "200"
+    path                = "/status/"
+    unhealthy_threshold = 3
   }
 }
 
@@ -247,8 +249,10 @@ resource "aws_lb_target_group" "green" {
   vpc_id      = var.vpc_id
 
   health_check {
-    matcher = "200-499"
-    path    = "/"
+    healthy_threshold   = 5
+    matcher             = "200"
+    path                = "/status/"
+    unhealthy_threshold = 3
   }
 }
 
