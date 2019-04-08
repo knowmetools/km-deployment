@@ -218,6 +218,59 @@ module "api_cluster" {
 }
 
 ################################################################################
+#                                    API WAF                                   #
+################################################################################
+
+resource "aws_wafregional_web_acl_association" "api_lb" {
+  resource_arn = module.api_cluster.api_elb.arn
+  web_acl_id   = aws_wafregional_web_acl.api.id
+}
+
+resource "aws_wafregional_web_acl" "api" {
+  name        = "KnowMe${title(local.env)}API"
+  metric_name = "KnowMe${title(local.env)}API"
+
+  default_action {
+    type = "BLOCK"
+  }
+
+  rule {
+    action {
+      type = "ALLOW"
+    }
+
+    priority = 1
+    rule_id  = aws_wafregional_rule.api_hosts.id
+  }
+}
+
+resource "aws_wafregional_rule" "api_hosts" {
+  metric_name = "KnowMe${title(local.env)}APIHosts"
+  name        = "KnowMe${title(local.env)}APIHosts"
+
+  predicate {
+    data_id = aws_wafregional_byte_match_set.api_host.id
+    negated = false
+    type    = "ByteMatch"
+  }
+}
+
+resource "aws_wafregional_byte_match_set" "api_host" {
+  name = "${local.full_name_slug}-api-matches-host"
+
+  byte_match_tuples {
+    text_transformation   = "LOWERCASE"
+    target_string         = local.api_domain
+    positional_constraint = "EXACTLY"
+
+    field_to_match {
+      type = "HEADER"
+      data = "Host"
+    }
+  }
+}
+
+################################################################################
 #                                    Servers                                   #
 ################################################################################
 

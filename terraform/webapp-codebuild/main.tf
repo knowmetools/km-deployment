@@ -125,11 +125,11 @@ module "webapp_codebuild" {
 
 resource "aws_iam_role_policy_attachment" "codebuild_artifact_access" {
   policy_arn = aws_iam_policy.codebuild_artifact_access.arn
-  role = module.webapp_codebuild.service_role
+  role       = module.webapp_codebuild.service_role
 }
 
 resource "aws_iam_policy" "codebuild_artifact_access" {
-  name = "${var.app_slug}-codebuild-artifact-access"
+  name   = "${var.app_slug}-codebuild-artifact-access"
   policy = data.aws_iam_policy_document.codebuild_artifact_access.json
 }
 
