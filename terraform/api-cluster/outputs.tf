@@ -14,3 +14,6 @@ output "api_elb_zone_id" {
   value = aws_lb.api.zone_id
 }
 
+output "api_webserver_sg" {
+  value = aws_security_group.api
+}

@@ -233,7 +233,6 @@ resource "aws_db_instance" "database" {
   name                                = var.database_name
   password                            = random_string.db_admin_password.result
   port                                = var.database_port
-  publicly_accessible                 = true
   username                            = var.database_admin_user
   vpc_security_group_ids              = [aws_security_group.db.id]
 
@@ -293,13 +292,24 @@ resource "aws_security_group" "db" {
 
 # Database Rules
 
-resource "aws_security_group_rule" "db_ingress" {
-  cidr_blocks       = ["0.0.0.0/0"]
-  from_port         = var.database_port
-  protocol          = "tcp"
-  security_group_id = aws_security_group.db.id
-  to_port           = var.database_port
-  type              = "ingress"
+resource "aws_security_group_rule" "db_in_api" {
+  description              = "Allow connections from API web servers."
+  from_port                = var.database_port
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.db.id
+  source_security_group_id = module.api_cluster.api_webserver_sg.id
+  to_port                  = var.database_port
+  type                     = "ingress"
+}
+
+resource "aws_security_group_rule" "api_out_db" {
+  description              = "Allow outgoing database connections."
+  from_port                = var.database_port
+  protocol                 = "tcp"
+  security_group_id        = module.api_cluster.api_webserver_sg.id
+  source_security_group_id = aws_security_group.db.id
+  to_port                  = var.database_port
+  type                     = "egress"
 }
 
 ################################################################################

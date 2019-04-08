@@ -74,6 +74,10 @@ touches the database.*
 
 ### DB Migration
 
+*__Note:__ The database is no longer exposed to the public by default. In order
+to access it, we must first make it publicly accessible and add a security group
+rule that allows us access.*
+
 The first step is to remove the database from the Terraform state file. This
 prevents Terraform from deleting it until we have finished the migration and are
 sure that we have all the data.

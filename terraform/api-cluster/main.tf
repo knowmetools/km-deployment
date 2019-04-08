@@ -111,7 +111,7 @@ module "migrate_hook" {
     CONTAINER_NAME                   = local.api_web_container_name
     DATABASE_ADMIN_PASSWORD_SSM_NAME = var.database_admin_password_ssm_name
     DATABASE_ADMIN_USER              = var.database_admin_user
-    SECURITY_GROUPS                  = aws_security_group.all.id
+    SECURITY_GROUPS                  = aws_security_group.api.id
     SUBNETS                          = join(",", var.subnet_ids)
   }
 }
@@ -147,7 +147,7 @@ resource "aws_ecs_service" "api" {
 
   network_configuration {
     assign_public_ip = true
-    security_groups  = [aws_security_group.all.id]
+    security_groups  = [aws_security_group.api.id]
     subnets          = var.subnet_ids
   }
 
@@ -188,7 +188,7 @@ resource "aws_ecs_task_definition" "api" {
 
 resource "aws_lb" "api" {
   name            = "${var.app_slug}-lb"
-  security_groups = [aws_security_group.all.id]
+  security_groups = [aws_security_group.lb.id]
   subnets         = var.subnet_ids
 }
 
@@ -256,20 +256,74 @@ resource "aws_lb_target_group" "green" {
   }
 }
 
-resource "aws_security_group" "all" {
-  egress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 0
-    protocol    = "-1"
-    to_port     = 0
-  }
+resource "aws_security_group" "api" {
+  name   = "${var.app_slug}-web-servers"
+  vpc_id = var.vpc_id
+}
 
-  ingress {
-    cidr_blocks = ["0.0.0.0/0"]
-    from_port   = 0
-    protocol    = "-1"
-    to_port     = 0
-  }
+resource "aws_security_group_rule" "api_in" {
+  description              = "Allow incoming connections from the load balancer."
+  from_port                = local.api_web_container_port
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.api.id
+  source_security_group_id = aws_security_group.lb.id
+  to_port                  = local.api_web_container_port
+  type                     = "ingress"
+}
+
+resource "aws_security_group_rule" "api_out_http" {
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "Allow outgoing HTTP connections."
+  from_port         = 80
+  protocol          = "tcp"
+  security_group_id = aws_security_group.api.id
+  to_port           = 80
+  type              = "egress"
+}
+
+resource "aws_security_group_rule" "api_out_https" {
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "Allow outgoing HTTPS connections."
+  from_port         = 443
+  protocol          = "tcp"
+  security_group_id = aws_security_group.api.id
+  to_port           = 443
+  type              = "egress"
+}
+
+resource "aws_security_group" "lb" {
+  name   = "${var.app_slug}-load-balancer"
+  vpc_id = var.vpc_id
+}
+
+resource "aws_security_group_rule" "lb_in_http" {
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "Allow incoming HTTP connections."
+  from_port         = 80
+  protocol          = "tcp"
+  security_group_id = aws_security_group.lb.id
+  to_port           = 80
+  type              = "ingress"
+}
+
+resource "aws_security_group_rule" "lb_in_https" {
+  cidr_blocks       = ["0.0.0.0/0"]
+  description       = "Allow incoming HTTPS connections."
+  from_port         = 443
+  protocol          = "tcp"
+  security_group_id = aws_security_group.lb.id
+  to_port           = 443
+  type              = "ingress"
+}
+
+resource "aws_security_group_rule" "lb_out_api" {
+  description              = "Allow outgoing traffic from the load balancer to the web servers."
+  from_port                = local.api_web_container_port
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.lb.id
+  source_security_group_id = aws_security_group.api.id
+  to_port                  = local.api_web_container_port
+  type                     = "egress"
 }
 
 # TODO: Configure retention period
