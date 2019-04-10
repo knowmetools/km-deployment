@@ -31,9 +31,10 @@ resource "aws_codepipeline" "webapp" {
       version          = "1"
 
       configuration = {
-        Branch = var.source_branch
-        Owner  = "knowmetools"
-        Repo   = data.github_repository.webapp.name
+        Branch               = var.source_branch
+        Owner                = "knowmetools"
+        PollForSourceChanges = "false"
+        Repo                 = data.github_repository.webapp.name
       }
     }
   }
@@ -75,34 +76,14 @@ resource "aws_codepipeline" "webapp" {
   }
 }
 
-resource "aws_codepipeline_webhook" "bar" {
-  name            = "${var.app_slug}-hook"
-  authentication  = "GITHUB_HMAC"
-  target_action   = "Source"
-  target_pipeline = aws_codepipeline.webapp.name
+module "pipeline_source_hook" {
+  source = "../codepipeline-github-webhook"
 
-  authentication_configuration {
-    secret_token = random_string.webhook_secret.result
-  }
-
-  filter {
-    json_path    = "$.ref"
-    match_equals = "refs/heads/${var.source_branch}"
-  }
-}
-
-resource "github_repository_webhook" "bar" {
-  repository = data.github_repository.webapp.name
-  name       = "web"
-
-  configuration {
-    url          = aws_codepipeline_webhook.bar.url
-    content_type = "json"
-    insecure_ssl = true
-    secret       = random_string.webhook_secret.result
-  }
-
-  events = ["push"]
+  github_repository = data.github_repository.webapp.name
+  app_slug          = var.app_slug
+  source_branch     = var.source_branch
+  target_action     = "Source"
+  target_pipeline   = aws_codepipeline.webapp.name
 }
 
 ################################################################################
@@ -209,13 +190,5 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
 }
 EOF
 
-}
-
-################################################################################
-#                                    Secrets                                   #
-################################################################################
-
-resource "random_string" "webhook_secret" {
-  length = 32
 }
 

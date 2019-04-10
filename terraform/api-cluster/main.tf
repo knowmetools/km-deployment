@@ -357,9 +357,10 @@ resource "aws_codepipeline" "api" {
       version          = "1"
 
       configuration = {
-        Branch = var.source_branch
-        Owner  = var.source_owner
-        Repo   = var.source_repo
+        Branch               = var.source_branch
+        Owner                = var.source_owner
+        PollForSourceChanges = "false"
+        Repo                 = var.source_repo
       }
     }
 
@@ -419,6 +420,16 @@ resource "aws_codepipeline" "api" {
       }
     }
   }
+}
+
+module "api_pipeline_source_hook" {
+  source = "../codepipeline-github-webhook"
+
+  github_repository = var.source_repo
+  app_slug          = var.app_slug
+  source_branch     = var.source_branch
+  target_action     = "Source"
+  target_pipeline   = aws_codepipeline.api.name
 }
 
 module "api_codebuild" {

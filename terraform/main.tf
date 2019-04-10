@@ -265,7 +265,7 @@ resource "aws_wafregional_byte_match_set" "api_host" {
 
     field_to_match {
       type = "HEADER"
-      data = "Host"
+      data = "host"
     }
   }
 }
