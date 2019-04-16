@@ -29,6 +29,57 @@ ecs = boto3.client('ecs')
 ssm = boto3.client('ssm')
 
 
+def env_list(param_name, delimiter=","):
+    """
+    Get a list of parameters from an environment variable. The list is
+    expected to be delimited by the given character.
+
+    Args:
+        param_name:
+            The name of the environment variable to read the list from.
+        delimiter:
+            The delimiter used to separate values in the environment
+            variable. Defaults to a comma (``","``).
+
+    Returns:
+        A list containing the parsed elements from the environment
+        variable.
+    """
+    raw_str = env_param(param_name, default='', required=False)
+
+    return raw_str.split(delimiter) if raw_str else []
+
+
+def env_param(param_name, default=None, required=True):
+    """
+    Get a parameter from the environment.
+
+    Args:
+        param_name:
+            The name of the environment variable to read.
+        default:
+            The default value to return if the environment variable is
+            not set.
+        required:
+            A boolean indicating if an error should be thrown if the
+            environment variable is not set.
+
+    Returns:
+        The value of the environment variable with the given name. If
+        the variable is not set and it is not required, ``default`` is
+        returned.
+
+    Raises:
+        KeyError:
+            If the ``required`` is ``True`` and the environment variable
+            is not set.
+    """
+    if required:
+        return os.environ[param_name]
+
+    return os.getenv(param_name, default)
+
+
 def handler(event, context):
     """
     The entry point into the lambda function.
@@ -58,28 +109,26 @@ def handler(event, context):
         A dictionary containing a response code and status message.
     """
     # Which cluster to launch the migration task on.
-    cluster = os.getenv('CLUSTER')
-    # The name of the API webserver container being overridden to run
+    cluster = env_param('CLUSTER')
+    # The name of the API web server container being overridden to run
     # the migration task.
-    container_name = os.getenv('CONTAINER_NAME')
+    container_name = env_param('CONTAINER_NAME')
 
-    # A comma-separated list of security group IDs that the migration
-    # task should be placed in.
-    security_group_str = os.getenv('SECURITY_GROUPS', '')
-    security_groups = security_group_str.split(',') if security_group_str else []
+    # A list of security group IDs that the migration task should be
+    # placed in.
+    security_groups = env_list('SECURITY_GROUPS')
 
-    # A comma-separated list of subnet IDs corresponding to the subnets
-    # the migration task may be placed in.
-    subnet_ids_str = os.getenv('SUBNETS', '')
-    subnet_ids = subnet_ids_str.split(',') if subnet_ids_str else []
+    # A list of subnet IDs corresponding to the subnets the migration
+    # task may be placed in.
+    subnet_ids = env_list('SUBNETS')
 
     # Admin credentials. Passwords are pulled from SSM.
-    admin_email = os.getenv('ADMIN_EMAIL')
-    admin_password_ssm_name = os.getenv('ADMIN_PASSWORD_SSM_NAME')
-    database_admin_password_ssm_name = os.getenv(
+    admin_email = env_param('ADMIN_EMAIL')
+    admin_password_ssm_name = env_param('ADMIN_PASSWORD_SSM_NAME')
+    database_admin_password_ssm_name = env_param(
         'DATABASE_ADMIN_PASSWORD_SSM_NAME'
     )
-    database_admin_user = os.getenv('DATABASE_ADMIN_USER')
+    database_admin_user = env_param('DATABASE_ADMIN_USER')
 
     # The deployment ID and execution ID are used to pull further
     # information and report statuses.
@@ -190,7 +239,7 @@ def handler(event, context):
             # The role our code runs under.
             'taskRoleArn': task_role,
         },
-        networkConfiguration = {
+        networkConfiguration={
             'awsvpcConfiguration': {
                 # Need to assign a public IP so the image can be pulled.
                 'assignPublicIp': 'ENABLED',
