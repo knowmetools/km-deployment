@@ -82,16 +82,75 @@ data "archive_file" "api_deploy_params" {
   }
 }
 
-data "archive_file" "lambda_source" {
-  output_path = "${path.module}/files/lambda-source.zip"
+data "archive_file" "background_lambda_source" {
+  output_path = "${path.module}/files/background-lambda-source.zip"
+  type        = "zip"
+
+  source {
+    content  = file("${path.module}/../../scripts/api-lambda-tasks/background_handler.py")
+    filename = "lambda_handler.py"
+  }
+
+  source {
+    content  = file("${path.module}/../../scripts/api-lambda-tasks/utils.py")
+    filename = "utils.py"
+  }
+}
+
+data "archive_file" "migrate_lambda_source" {
+  output_path = "${path.module}/files/migrate-lambda-source.zip"
   type        = "zip"
 
   source {
     content = file(
-      "${path.module}/../../scripts/api-migrate/lambda_handler.py",
+      "${path.module}/../../scripts/api-lambda-tasks/migration_handler.py",
     )
     filename = "lambda_handler.py"
   }
+
+  source {
+    content  = file("${path.module}/../../scripts/api-lambda-tasks/utils.py")
+    filename = "utils.py"
+  }
+}
+
+module "background_jobs_lambda" {
+  source = "../lambda"
+
+  function_name       = "${var.app_slug}-invoke-background-jobs"
+  handler             = "lambda_handler.handler"
+  runtime             = "python3.7"
+  source_archive      = data.archive_file.background_lambda_source.output_path
+  source_archive_hash = data.archive_file.background_lambda_source.output_base64sha256
+  timeout             = 60
+
+  environment_variables = {
+    CLUSTER         = aws_ecs_cluster.main.name
+    CONTAINER_NAME  = local.api_web_container_name
+    SECURITY_GROUPS = aws_security_group.api.id
+    SERVICE         = aws_ecs_service.api.name
+    SUBNETS         = join(",", var.subnet_ids)
+  }
+}
+
+resource "aws_cloudwatch_event_rule" "background_trigger" {
+  name                = "${var.app_slug}-background-jobs-trigger"
+  description         = "Trigger background jobs for ${var.app_slug} periodically."
+  schedule_expression = "rate(15 minutes)"
+}
+
+resource "aws_cloudwatch_event_target" "background_jobs_lambda" {
+  arn       = module.background_jobs_lambda.function_arn
+  rule      = aws_cloudwatch_event_rule.background_trigger.name
+  target_id = "${var.app_slug}-background-jobs-lambda-function"
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch" {
+  statement_id  = "${var.app_slug}-background-task-cloudwatch-invokation"
+  action        = "lambda:InvokeFunction"
+  function_name = module.background_jobs_lambda.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.background_trigger.arn
 }
 
 module "migrate_hook" {
@@ -100,8 +159,8 @@ module "migrate_hook" {
   function_name       = "${var.app_slug}-migrate-hook"
   handler             = "lambda_handler.handler"
   runtime             = "python3.7"
-  source_archive      = data.archive_file.lambda_source.output_path
-  source_archive_hash = data.archive_file.lambda_source.output_base64sha256
+  source_archive      = data.archive_file.migrate_lambda_source.output_path
+  source_archive_hash = data.archive_file.migrate_lambda_source.output_base64sha256
   timeout             = 120
 
   environment_variables = {
@@ -675,6 +734,37 @@ resource "aws_iam_role_policy_attachment" "codebuild_ecs" {
 ################################################################################
 #                              Lambda Permissions                              #
 ################################################################################
+
+resource "aws_iam_role_policy_attachment" "background_lambda" {
+  policy_arn = aws_iam_policy.background_lambda.arn
+  role       = module.background_jobs_lambda.iam_role
+}
+
+resource "aws_iam_policy" "background_lambda" {
+  name   = "${var.app_slug}-lambda-background-jobs"
+  policy = data.aws_iam_policy_document.background_lambda.json
+}
+
+data "aws_iam_policy_document" "background_lambda" {
+  statement {
+    actions = [
+      "ecs:DescribeServices",
+      "ecs:DescribeTaskDefinition",
+      "iam:PassRole",
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    actions = ["ecs:RunTask"]
+    resources = [
+      "arn:aws:ecs:*:*:task-definition/${aws_ecs_task_definition.api.family}:*"
+    ]
+  }
+}
 
 resource "aws_iam_role_policy_attachment" "lambda" {
   policy_arn = aws_iam_policy.lambda.arn
