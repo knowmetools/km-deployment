@@ -43,6 +43,16 @@ variable "django_admin_password_ssm_name" {
   description = "The name of the SSM parameter containing the admin user to create during deployments."
 }
 
+variable "log_retention_days_api" {
+  default     = 90
+  description = "The number of days to keep logs for API events."
+}
+
+variable "log_retention_days_build" {
+  default     = 30
+  description = "The number of days to keep logs for build related events."
+}
+
 variable "source_branch" {
   default     = "master"
   description = "The branch of the source GitHub repository to deploy."

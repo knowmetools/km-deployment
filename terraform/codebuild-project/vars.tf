@@ -37,6 +37,11 @@ variable "image" {
   description = "The name of the Docker image to run the project on."
 }
 
+variable "log_retention_days" {
+  default     = 30
+  description = "The number of days to keep the logs from the build."
+}
+
 variable "name" {
   description = "The name of the CodeBuild project."
 }

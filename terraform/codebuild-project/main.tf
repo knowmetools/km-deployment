@@ -39,6 +39,15 @@ resource "aws_codebuild_project" "this" {
 }
 
 ################################################################################
+#                                   Log Group                                  #
+################################################################################
+
+resource "aws_cloudwatch_log_group" "codebuild" {
+  name              = "/aws/codebuild/${aws_codebuild_project.this.name}"
+  retention_in_days = var.log_retention_days
+}
+
+################################################################################
 #                            IAM Roles and Policies                            #
 ################################################################################
 
@@ -108,12 +117,14 @@ resource "aws_iam_policy" "codebuild_log" {
 data "aws_iam_policy_document" "codebuild_logs" {
   statement {
     actions = [
-      "logs:CreateLogGroup",
       "logs:CreateLogStream",
       "logs:PutLogEvents",
     ]
 
-    resources = ["*"]
+    resources = [
+      aws_cloudwatch_log_group.codebuild.arn,
+      "${aws_cloudwatch_log_group.codebuild.arn}:*:*",
+    ]
   }
 }
 

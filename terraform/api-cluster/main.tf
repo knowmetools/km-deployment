@@ -119,6 +119,7 @@ module "background_jobs_lambda" {
 
   function_name       = "${var.app_slug}-invoke-background-jobs"
   handler             = "lambda_handler.handler"
+  log_retention_days  = var.log_retention_days_api
   runtime             = "python3.7"
   source_archive      = data.archive_file.background_lambda_source.output_path
   source_archive_hash = data.archive_file.background_lambda_source.output_base64sha256
@@ -158,6 +159,7 @@ module "migrate_hook" {
 
   function_name       = "${var.app_slug}-migrate-hook"
   handler             = "lambda_handler.handler"
+  log_retention_days  = var.log_retention_days_api
   runtime             = "python3.7"
   source_archive      = data.archive_file.migrate_lambda_source.output_path
   source_archive_hash = data.archive_file.migrate_lambda_source.output_base64sha256
@@ -385,9 +387,9 @@ resource "aws_security_group_rule" "lb_out_api" {
   type                     = "egress"
 }
 
-# TODO: Configure retention period
 resource "aws_cloudwatch_log_group" "api" {
-  name = var.app_slug
+  name              = var.app_slug
+  retention_in_days = var.log_retention_days_api
 }
 
 
@@ -494,11 +496,12 @@ module "api_pipeline_source_hook" {
 module "api_codebuild" {
   source = "../codebuild-project"
 
-  artifact_s3_arn = var.codepipeline_artifact_bucket.arn
-  description     = "Build the Docker image for ${var.app_slug}."
-  image           = "aws/codebuild/docker:18.09.0"
-  name            = "${var.app_slug}-docker-build"
-  privileged_mode = true
+  artifact_s3_arn    = var.codepipeline_artifact_bucket.arn
+  description        = "Build the Docker image for ${var.app_slug}."
+  image              = "aws/codebuild/docker:18.09.0"
+  log_retention_days = var.log_retention_days_build
+  name               = "${var.app_slug}-docker-build"
+  privileged_mode    = true
 
   environment_variables = {
     ECR_URI      = aws_ecr_repository.api.repository_url
@@ -751,9 +754,6 @@ data "aws_iam_policy_document" "background_lambda" {
       "ecs:DescribeServices",
       "ecs:DescribeTaskDefinition",
       "iam:PassRole",
-      "logs:CreateLogGroup",
-      "logs:CreateLogStream",
-      "logs:PutLogEvents"
     ]
     resources = ["*"]
   }
@@ -784,10 +784,7 @@ resource "aws_iam_policy" "lambda" {
         "*"
       ],
       "Action": [
-        "iam:PassRole",
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
+        "iam:PassRole"
       ]
     },
     {

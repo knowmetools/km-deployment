@@ -13,6 +13,11 @@ variable "handler" {
   description = "The name of the handler within the source archive that is the entry point into the function."
 }
 
+variable "log_retention_days" {
+  default     = 30
+  description = "The number of days to keep logs for the Lambda function."
+}
+
 variable "runtime" {
   description = "The name of the lambda runtime to execute the function with."
 }
