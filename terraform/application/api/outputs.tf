@@ -1,7 +1,3 @@
-output "admin_password_ssm_param" {
-  value = aws_ssm_parameter.django_admin_password
-}
-
 output "database_admin_password_ssm_param" {
   value = aws_ssm_parameter.db_admin_password
 }

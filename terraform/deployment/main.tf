@@ -328,7 +328,7 @@ module "migrate_hook" {
 
   environment_variables = {
     ADMIN_EMAIL                      = var.admin_email
-    ADMIN_PASSWORD_SSM_NAME          = var.admin_password_ssm_param.name
+    ADMIN_PASSWORD_SSM_NAME          = aws_ssm_parameter.admin_password.name
     CLUSTER                          = var.api_ecs_cluster
     CONTAINER_NAME                   = var.api_web_container_name
     DATABASE_ADMIN_PASSWORD_SSM_NAME = var.database_admin_password_ssm_param.name
@@ -357,6 +357,31 @@ data "archive_file" "migrate_lambda_source" {
     content  = file("${path.module}/../../scripts/api-lambda-tasks/utils.py")
     filename = "utils.py"
   }
+}
+
+################################################################################
+#                               Secret Generation                              #
+################################################################################
+
+resource "random_string" "admin_password" {
+  length = 32
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                       Store Secrets as SSM Parameters                      //
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+// For secrets that we need access to after the deployment process, we store  //
+// the values as `SecureString` parameters in SSM. This allows us to inject   //
+// the parameters into other process such as ECS services without exposing    //
+// the plaintext values.                                                      //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+resource "aws_ssm_parameter" "admin_password" {
+  name  = "${var.ssm_parameter_prefix}/admin/password"
+  type  = "SecureString"
+  value = random_string.admin_password.result
 }
 
 ################################################################################
@@ -546,7 +571,7 @@ data "aws_iam_policy_document" "migration_lambda" {
   statement {
     actions = ["ssm:GetParameter"]
     resources = [
-      "arn:aws:ssm:*:*:parameter${var.admin_password_ssm_param.name}",
+      aws_ssm_parameter.admin_password.arn,
       "arn:aws:ssm:*:*:parameter${var.database_admin_password_ssm_param.name}",
     ]
   }

@@ -90,8 +90,7 @@ module "prod_app" {
 module "deployment" {
   source = "./deployment"
 
-  admin_email                           = var.django_admin_email
-  admin_password_ssm_param              = module.prod_app.admin_password_ssm_param
+  admin_email                           = var.admin_email
   api_ecr_repository                    = module.prod_app.api_ecr_repository
   api_ecs_cluster                       = module.prod_app.api_ecs_cluster
   api_lb_listener                       = module.prod_app.api_lb_listener
@@ -115,6 +114,7 @@ module "deployment" {
   database_admin_user                   = module.prod_app.database_admin_user
   database_password_ssm_param           = module.prod_app.database_password_ssm_param
   source_owner                          = var.github_organization
+  ssm_parameter_prefix                  = "/${var.application_slug}/${local.env}"
   web_app_bucket                        = module.prod_app.web_app_s3_bucket
   web_app_source_branch                 = var.web_app_source_branch
   web_app_source_repo                   = var.web_app_source_repo

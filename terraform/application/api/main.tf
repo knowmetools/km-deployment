@@ -218,10 +218,6 @@ resource "random_string" "db_password" {
   }
 }
 
-resource "random_string" "django_admin_password" {
-  length = 32
-}
-
 resource "random_string" "django_secret_key" {
   length = 50
 }
@@ -247,12 +243,6 @@ resource "aws_ssm_parameter" "db_password" {
   name  = "${var.ssm_parameter_prefix}/db/password"
   type  = "SecureString"
   value = random_string.db_password.result
-}
-
-resource "aws_ssm_parameter" "django_admin_password" {
-  name  = "${var.ssm_parameter_prefix}/django/admin-password"
-  type  = "SecureString"
-  value = random_string.django_admin_password.result
 }
 
 resource "aws_ssm_parameter" "django_secret_key" {

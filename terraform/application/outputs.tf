@@ -1,7 +1,3 @@
-output "admin_password_ssm_param" {
-  value = module.api.admin_password_ssm_param
-}
-
 output "api_ecr_repository" {
   value = module.api.ecr_repository
 }

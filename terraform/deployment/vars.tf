@@ -2,11 +2,6 @@ variable "admin_email" {
   description = "The email address of the application admin user."
 }
 
-variable "admin_password_ssm_param" {
-  description = "The SSM parameter storing the password of the admin user."
-  type        = object({ name = string })
-}
-
 variable "api_ecr_repository" {
   description = "The ECR repository containing the Docker images for the API."
   type        = object({ repository_url = string })
@@ -114,6 +109,10 @@ variable "log_retention_days" {
 
 variable "source_owner" {
   description = "The name of the GitHub organization that owns the source repositories for the API and web app."
+}
+
+variable "ssm_parameter_prefix" {
+  description = "A prefix to apply to SSM parameters."
 }
 
 variable "web_app_bucket" {

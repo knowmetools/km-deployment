@@ -1,3 +1,8 @@
+variable "admin_email" {
+  default     = "admin@knowme.works"
+  description = "The email address of the admin user to create."
+}
+
 variable "api_source_branch" {
   description = "The branch of the API repository to deploy."
 }
