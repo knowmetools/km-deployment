@@ -2,9 +2,9 @@
 #                                  Variables                                   #
 ################################################################################
 
-variable "acm_certificate_arn" {
-  description = "The ARN of the ACM certificate to use for the distribution."
-  type        = string
+variable "acm_certificate" {
+  description = "The ACM certificate to use for the distribution."
+  type        = object({ arn = string })
 }
 
 variable "app_name" {
@@ -25,11 +25,6 @@ variable "base_tags" {
 
 variable "domain" {
   description = "The domain name to use for the distribution."
-  type        = string
-}
-
-variable "domain_zone_id" {
-  description = "The ID of the Route 53 hosted zone to create an A record in."
   type        = string
 }
 
@@ -130,21 +125,8 @@ resource "aws_cloudfront_distribution" "s3" {
   }
 
   viewer_certificate {
-    acm_certificate_arn = var.acm_certificate_arn
+    acm_certificate_arn = var.acm_certificate.arn
     ssl_support_method  = "sni-only"
-  }
-}
-
-# TODO: Create DNS record outside of module.
-resource "aws_route53_record" "root_domain" {
-  name    = var.domain
-  type    = "A"
-  zone_id = var.domain_zone_id
-
-  alias {
-    name                   = aws_cloudfront_distribution.s3.domain_name
-    zone_id                = aws_cloudfront_distribution.s3.hosted_zone_id
-    evaluate_target_health = false
   }
 }
 
@@ -172,14 +154,10 @@ resource "aws_cloudfront_origin_access_identity" "origin_access_identity" {}
 ################################################################################
 
 output "s3_bucket" {
-  value = aws_s3_bucket.source.bucket
+  value = aws_s3_bucket.source
 }
 
-output "s3_bucket_arn" {
-  value = aws_s3_bucket.source.arn
-}
-
-output "cloudfront_url" {
-  value = aws_route53_record.root_domain.fqdn
+output "cloudfront_dist" {
+  value = aws_cloudfront_distribution.s3
 }
 

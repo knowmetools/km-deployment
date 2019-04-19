@@ -39,54 +39,9 @@ variable "application_slug" {
   description = "A base slug used when naming resources."
 }
 
-variable "application_db_user" {
-  default     = "app_db_user"
-  description = "The name of the database user that the app connects as."
-}
-
 variable "aws_region" {
   default     = "us-east-1"
   description = "The AWS region to provision infrastructure in."
-}
-
-variable "database_admin_user" {
-  default     = "dbadmin"
-  description = "The name of the master user account on the database."
-}
-
-variable "database_backup_window" {
-  default     = 7
-  description = "The number of days to retain database backups for."
-}
-
-variable "database_instance_type" {
-  default     = "db.t2.micro"
-  description = "The type of database instance to provision."
-}
-
-variable "database_name" {
-  default     = "appdb"
-  description = "The name of the database created on the RDS instance."
-}
-
-variable "database_port" {
-  default     = 5432
-  description = "The port that the database is accessible on."
-}
-
-variable "database_storage" {
-  default     = 10
-  description = "The amount of storage (GB) to allocate for the database."
-}
-
-variable "database_user" {
-  default     = "app_db_user"
-  description = "The name of the database user that the application connects as."
-}
-
-variable "django_admin_email" {
-  default     = "admin@knowme.works"
-  description = "The email of the admin user to create."
 }
 
 variable "domain" {
@@ -101,5 +56,14 @@ variable "github_organization" {
 
 variable "sentry_dsn" {
   description = "The DSN of the Sentry project used to track errors for the API."
+}
+
+variable "web_app_source_branch" {
+  description = "The branch of the web app source repository to build."
+}
+
+variable "web_app_source_repo" {
+  default     = "km-web"
+  description = "The name of the web app source repository."
 }
 
