@@ -35,16 +35,19 @@ provider "template" {
 }
 
 locals {
-  env            = terraform.workspace
-  full_name      = "${var.application_name} ${title(local.env)}"
-  full_name_slug = lower("${var.application_slug}-${local.env}")
-  api_subdomain  = terraform.workspace == "production" ? "toolbox" : "${terraform.workspace}.toolbox"
-  api_domain     = "${local.api_subdomain}.${var.domain}"
-  web_domain     = terraform.workspace == "production" ? "app.${var.domain}" : "${terraform.workspace}.app.${var.domain}"
+  env                = terraform.workspace
+  app_name           = "${var.application_name} ${title(local.env)}"
+  app_name_staging   = "${local.app_name} Staging"
+  app_slug           = lower("${var.application_slug}-${local.env}")
+  app_slug_staging   = "${local.app_slug}-staging"
+  api_subdomain      = terraform.workspace == "production" ? "toolbox" : "${terraform.workspace}.toolbox"
+  api_domain         = "${local.api_subdomain}.${var.domain}"
+  api_domain_staging = "staging.${local.api_domain}"
+  web_domain         = terraform.workspace == "production" ? "app.${var.domain}" : "${terraform.workspace}.app.${var.domain}"
+  web_domain_staging = "staging.${local.web_domain}"
 
   base_tags = {
     Application = var.application_name
-    Environment = title(local.env)
   }
 }
 
@@ -69,18 +72,37 @@ module "prod_app" {
 
   api_acm_certificate               = data.aws_acm_certificate.api
   api_domain                        = local.api_domain
-  app_name                          = local.full_name
-  app_slug                          = local.full_name_slug
+  app_name                          = local.app_name
+  app_slug                          = local.app_slug
   apple_km_premium_product_codes    = var.apple_km_premium_product_codes
   apple_receipt_validation_endpoint = var.apple_receipt_validation_endpoints[var.apple_receipt_validation_mode]
   apple_shared_secret               = var.apple_shared_secret
-  base_tags                         = local.base_tags
+  base_tags                         = merge(local.base_tags, { Environment = title(local.env) })
   environment                       = local.env
   route_53_zone                     = data.aws_route53_zone.main
   sentry_dsn                        = var.sentry_dsn
-  ssm_parameter_prefix              = "/${var.application_slug}/${local.env}"
+  ssm_parameter_prefix              = "/${var.application_slug}/${local.env}/production"
   web_app_acm_certificate           = data.aws_acm_certificate.web_app
   web_app_domain                    = local.web_domain
+}
+
+module "staging_app" {
+  source = "./application"
+
+  api_acm_certificate               = data.aws_acm_certificate.api
+  api_domain                        = local.api_domain_staging
+  app_name                          = local.app_name_staging
+  app_slug                          = local.app_slug_staging
+  apple_km_premium_product_codes    = var.apple_km_premium_product_codes
+  apple_receipt_validation_endpoint = var.apple_receipt_validation_endpoints[var.apple_receipt_validation_mode]
+  apple_shared_secret               = var.apple_shared_secret
+  base_tags                         = merge(local.base_tags, { Environment = "${title(local.env)} (Staging)" })
+  environment                       = "${local.env}-staging"
+  route_53_zone                     = data.aws_route53_zone.main
+  sentry_dsn                        = var.sentry_dsn
+  ssm_parameter_prefix              = "/${var.application_slug}/${local.env}/staging"
+  web_app_acm_certificate           = data.aws_acm_certificate.web_app
+  web_app_domain                    = local.web_domain_staging
 }
 
 ################################################################################
@@ -107,9 +129,9 @@ module "deployment" {
   api_url                               = "https://${local.api_domain}"
   api_web_container_name                = module.prod_app.api_web_container_name
   api_web_container_port                = module.prod_app.api_web_container_port
-  app_name                              = local.full_name
-  app_slug                              = local.full_name_slug
-  base_tags                             = local.base_tags
+  app_name                              = local.app_name
+  app_slug                              = local.app_slug
+  base_tags                             = merge(local.base_tags, { Environment = title(local.env) })
   database_admin_password_ssm_param     = module.prod_app.database_admin_password_ssm_param
   database_admin_user                   = module.prod_app.database_admin_user
   database_password_ssm_param           = module.prod_app.database_password_ssm_param
