@@ -3,6 +3,51 @@
 Deployment process for the entire Know Me app ecosystem. Infrastructure is
 managed with [Terraform][terraform].
 
+<!--
+TOC managed by https://github.com/ekalinin/github-markdown-toc. Please do not
+edit it directly.
+-->
+
+## Table of Contents
+
+<!--ts-->
+   * [Know Me Deployment](#know-me-deployment)
+      * [Table of Contents](#table-of-contents)
+      * [Overview](#overview)
+      * [Provisioning](#provisioning)
+         * [Prerequisites](#prerequisites)
+         * [Updating the Infrastructure](#updating-the-infrastructure)
+      * [Architecture](#architecture)
+         * [Application](#application)
+            * [API](#api)
+            * [Web Application](#web-application)
+         * [Deployment](#deployment)
+            * [Building Application Versions](#building-application-versions)
+            * [Deploying a Version](#deploying-a-version)
+      * [Design Decisions and Quirks](#design-decisions-and-quirks)
+         * [Pipeline from Staging to Production](#pipeline-from-staging-to-production)
+         * [Lambda Function for Database Migrations](#lambda-function-for-database-migrations)
+         * [API Background Job Invocation](#api-background-job-invocation)
+         * [Building the Web Application Twice](#building-the-web-application-twice)
+      * [Migrations Involving the Database or Media Files](#migrations-involving-the-database-or-media-files)
+         * [DB Migration](#db-migration)
+            * [State Removal](#state-removal)
+            * [Backup](#backup)
+            * [Create New Database](#create-new-database)
+            * [Create Role](#create-role)
+            * [Restore Data](#restore-data)
+            * [Delete Old Database](#delete-old-database)
+         * [S3 Migration](#s3-migration)
+            * [Terraform State Removal](#terraform-state-removal)
+            * [Create New Bucket](#create-new-bucket)
+            * [Copy Over Files](#copy-over-files)
+            * [Delete Old Bucket](#delete-old-bucket)
+      * [License](#license)
+
+<!-- Added by: chathan, at: Sat Apr 20 13:40:53 EDT 2019 -->
+
+<!--te-->
+
 ## Overview
 
 This project is responsible for deploying all portions of the Know Me
@@ -44,6 +89,154 @@ terraform plan -out tfplan
 terraform apply tfplan
 ```
 
+## Architecture
+
+There are two main components that are provisioned in this repository. The first
+is the infrastructure for the application itself. This includes components such
+as the ECS cluster running the API or the CloudFront distribution that serves
+the web app. The second component that is provisioned is the continuous
+integration and deployment pipeline responsible for deploying changes pushed to
+the source repositories into staging and then production.
+
+### Application
+
+Architecturally, the application is currently split into two pieces, the API and
+web application, each of which are stored in separate source repositories.
+
+#### API
+
+[Source Repository][know-me-api]
+
+The core of the API is the ECS service running the web servers that process
+incoming requests. Data is persisted in an RDS instance and user-uploaded files
+are stored in an S3 bucket.
+
+Outside the synchronous environment of the web servers, we also have a lambda
+function triggered periodically that runs a new ECS task that performs
+background jobs such as updating subscription statuses or cleaning up unneeded
+records.
+
+#### Web Application
+
+[Source Repository][know-me-web-app]
+
+The web application is simply a set of static HTML and JavaScript files that are
+built and deployed to an S3 bucket that is served through a CloudFront
+distribution.
+
+### Deployment
+
+Our deployment process is responsible for watching all source repositories for
+changes, building new versions, and then promoting those builds from the staging
+to production environment.
+
+The overall pipeline looks like:
+
+1. Pull source files for API and web application.
+2. Build API and web application.
+3. Deploy built versions to staging environment.
+4. Deploy built versions to production environment.
+
+#### Building Application Versions
+
+We have two CodeBuild projects set up, one for the API and one for the web
+application.
+
+The API build process is responsible for building the Docker image used to run
+the API's web servers, database migration tasks, and background jobs.
+
+The web application build process compiles the app into static files that are
+then output from the build in an archive file.
+
+#### Deploying a Version
+
+To deploy the API, we use CodeDeploy's integration with ECS to perform a
+blue/green deployment. Using the Docker image version output by the API build
+step, we can deploy a new set of web servers with the updated image. Prior to
+the new web servers being deployed, we use a Lambda function to run the
+migration tasks necessary before the new API version can be run.
+
+The deployment of the web application is much simpler as we use CodePipeline's
+integration with S3 to simply deploy the static files output by the web
+application's build step.
+
+The same process is used to deploy to the staging and production environments
+with the only difference being the resources that are targeted.
+
+## Design Decisions and Quirks
+
+Here we hope to explain some of the rationale behind the design decisions made
+in this repository.
+
+### Pipeline from Staging to Production
+
+Hopefully the benefits of a single pipeline that handles building a new
+application version and then promoting it from the staging to production
+environment are clear, but we will also explain one of the major reasons that
+influenced our decision to do this.
+
+In the past we have had a manually run deployment process required when
+releasing a new application version. Even though the process itself was
+automated (through a mix of Terraform and Ansible) we discovered that there was
+a fairly high burden to actually starting the process due to the abundance of
+configuration information that had to be provided. An example of this type of
+information is any third-party service credentials. Any time we launched a
+build, we would have to have that information on hand.
+
+This led to a practice where small changes were not immediately deployed because
+the time-cost of running a deployment outweighed the benefit of the change.
+
+Hopefully our new pipeline changes that. While the configuration information
+still has to be passed in when we provision the infrastructure in this
+repository, we no longer need it when deploying an application version. Since
+the application changes much more frequently than the configuration contained
+here, hopefully this will save a lot of developer/engineer time.
+
+### Lambda Function for Database Migrations
+
+In nearly any application interacting with a SQL database, the deployment
+process must consider how to migrate the database in order to be compatible with
+the new application version.
+
+The trouble in our case is that it is rather difficult to gain access to the
+Docker image version of the API that is being deployed. The only location in the
+CodeDeploy process where we get to insert custom code is through lambda
+functions that are [invoked as hooks][codedeploy-ecs-hooks].
+
+The next challenge we have to tackle is how to get the version of the Docker
+image we want to run the migrations from when the only information provided to
+the hook is the ID of the deployment. The
+[source code of the migration Lambda][lambda-migration] shows how that is done.
+Finally we launch a modified version of the ECS task for the API web servers
+being deployed that has its command overridden to run the migrations.
+
+The last piece of the puzzle is how to handle the asynchronous nature of the
+database migration. Since the Lambda function mentioned above only starts the
+migration task, we don't know if it has finished by the time the new web servers
+have been provisioned. [This article][ecs-database-migration] describes a shift
+in thinking that helps to understand how to deal with this type of task within
+the context of an ECS environment. Specifically, we use the health check
+mentioned in the article to prevent any web servers running the new application
+version from receiving traffic before the associated migrations are run.
+
+### API Background Job Invocation
+
+Since our background jobs are run on ECS, they seem like a perfect candidate for
+ECS' scheduled tasks. However, our deployment method complicates things in that
+we do not have a specific task definition to run because new task definitions
+are constantly created by our deployment process.
+
+To solve this, we use a CloudWatch periodic event to trigger a Lambda function
+that looks at the API service and pulls the Docker image being used by the API
+and runs the background jobs on that image.
+
+### Building the Web Application Twice
+
+If we inspect the CodePipeline responsible for deployments, we can see that we
+actually build the web application twice; once for staging and once for
+production. This is because the API that the application interacts with is
+baked in at build time, so we have to build a version for each environment.
+
 ## Migrations Involving the Database or Media Files
 
 The only part of our infrastructure that requires special care to replace is our
@@ -74,9 +267,13 @@ touches the database.*
 
 ### DB Migration
 
+---
+
 *__Note:__ The database is no longer exposed to the public by default. In order
 to access it, we must first make it publicly accessible and add a security group
 rule that allows us access.*
+
+---
 
 The first step is to remove the database from the Terraform state file. This
 prevents Terraform from deleting it until we have finished the migration and are
@@ -202,7 +399,10 @@ the old S3 bucket using the AWS Console, CLI, etc.
 This project is licensed under the [MIT License](LICENSE).
 
 
+[codedeploy-ecs-hooks]: https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html#appspec-hooks-ecs
+[ecs-database-migrations]: https://engineering.instawork.com/elegant-database-migrations-on-ecs-74f3487da99f
 [know-me-api]: https://github.com/knowmetools/km-api
 [know-me-web-app]: https://github.com/knowmetools/km-web
+[lambda-migration]: scripts/api-lambda-tasks/migration_handler.py
 [terraform]: https://www.terraform.io/
 [terraform-download]: https://www.terraform.io/downloads.html
