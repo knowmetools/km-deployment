@@ -1,7 +1,3 @@
-output "ecr_repository" {
-  value = aws_ecr_repository.api
-}
-
 output "ecs_cluster" {
   value = aws_ecs_cluster.main.name
 }

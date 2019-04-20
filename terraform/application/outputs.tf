@@ -1,7 +1,3 @@
-output "api_ecr_repository" {
-  value = module.api.ecr_repository
-}
-
 output "api_ecs_cluster" {
   value = module.api.ecs_cluster
 }

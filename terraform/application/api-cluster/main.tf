@@ -102,10 +102,6 @@ resource "aws_ecs_cluster" "main" {
   name = var.app_slug
 }
 
-resource "aws_ecr_repository" "api" {
-  name = var.app_slug
-}
-
 resource "aws_ecs_service" "api" {
   depends_on = [aws_lb_listener.api]
 

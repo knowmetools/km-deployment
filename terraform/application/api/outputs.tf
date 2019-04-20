@@ -10,10 +10,6 @@ output "database_password_ssm_param" {
   value = aws_ssm_parameter.db_password
 }
 
-output "ecr_repository" {
-  value = module.api_cluster.ecr_repository
-}
-
 output "ecs_cluster" {
   value = module.api_cluster.ecs_cluster
 }
