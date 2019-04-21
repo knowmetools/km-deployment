@@ -42,11 +42,11 @@ locals {
   app_slug           = lower("${var.application_slug}-${local.env}")
   app_slug_staging   = "${local.app_slug}-staging"
   api_domain         = local.is_production ? "toolbox.${var.domain}" : "${terraform.workspace}.toolbox.${var.domain}"
-  api_domain_staging = local.is_production ? "toolbox-staging.${var.domain}" : "${local.env}-staging.toolbox.${var.domain}"
+  api_domain_staging = local.is_production ? "staging.toolbox.${var.domain}" : "${local.env}-staging.toolbox.${var.domain}"
   # TODO: Properly pass this to the application module
   task_definition_image_placeholder = "IMAGE"
   web_domain                        = local.is_production ? "app.${var.domain}" : "${local.env}.app.${var.domain}"
-  web_domain_staging                = local.is_production ? "app-staging.${var.domain}" : "${local.env}-staging.app.${var.domain}"
+  web_domain_staging                = local.is_production ? "staging.app.${var.domain}" : "${local.env}-staging.app.${var.domain}"
 
   base_tags = {
     Application = var.application_name
