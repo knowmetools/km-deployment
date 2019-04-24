@@ -68,7 +68,7 @@ resource "aws_s3_bucket_object" "deploy_params" {
 }
 
 data "archive_file" "api_deploy_params" {
-  output_path = "${path.module}/files/api-deploy-params.zip"
+  output_path = "${path.module}/files/api-deploy-params-${var.app_slug}.zip"
   type        = "zip"
 
   source {
