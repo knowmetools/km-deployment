@@ -73,6 +73,10 @@ module "api_cluster" {
       value = "https://${var.web_app_domain}/reset-password/{key}"
     },
     {
+      name  = "DJANGO_RUNNING_ON_ECS"
+      value = "True"
+    },
+    {
       name  = "DJANGO_S3_BUCKET"
       value = aws_s3_bucket.static.bucket
     },
