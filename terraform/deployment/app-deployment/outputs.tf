@@ -1,3 +1,8 @@
+output "admin_password" {
+  sensitive = true
+  value     = random_string.admin_password.result
+}
+
 output "codedeploy_app_name" {
   value = aws_codedeploy_app.api.name
 }
