@@ -29,6 +29,8 @@ edit it directly.
          * [Lambda Function for Database Migrations](#lambda-function-for-database-migrations)
          * [API Background Job Invocation](#api-background-job-invocation)
          * [Building the Web Application Twice](#building-the-web-application-twice)
+      * [Troubleshooting](#troubleshooting)
+         * [Changing the Source Repository Branch](#changing-the-source-repository-branch)
       * [Migrations Involving the Database or Media Files](#migrations-involving-the-database-or-media-files)
          * [DB Migration](#db-migration)
             * [State Removal](#state-removal)
@@ -44,7 +46,7 @@ edit it directly.
             * [Delete Old Bucket](#delete-old-bucket)
       * [License](#license)
 
-<!-- Added by: chathan, at: Sat Apr 20 13:40:53 EDT 2019 -->
+<!-- Added by: chathan, at: Wed May  1 12:23:38 EDT 2019 -->
 
 <!--te-->
 
@@ -236,6 +238,35 @@ If we inspect the CodePipeline responsible for deployments, we can see that we
 actually build the web application twice; once for staging and once for
 production. This is because the API that the application interacts with is
 baked in at build time, so we have to build a version for each environment.
+
+## Troubleshooting
+
+### Changing the Source Repository Branch
+
+Attempting to change the branch being deployed from either the API or web
+application repositories results in an error like:
+
+```
+module.deployment.module.api_pipeline_source_hook.aws_codepipeline_webhook.this: Modifying... [id=<example>]                                        
+                                                                                                                                                                                                              
+Error: doesn't support update                                                                                                                                                                                 
+                                                                                                                                                                                                              
+  on deployment/codepipeline-github-webhook/main.tf line 1, in resource "aws_codepipeline_webhook" "this":                                                                                                    
+   1: resource "aws_codepipeline_webhook" "this" {
+```
+
+To resolve this, simply delete the offending hook:
+
+```
+terraform destroy -target module.deployment.module.api_pipeline_source_hook.aws_codepipeline_webhook.this
+```
+
+Now we can provision the infrastructure again, pointing to the desired source
+branches. Note that you may have to manually trigger a CodePipeline build if the
+source branches are not pushed to after the environment is re-provisioned. It
+appears that
+[this GitHub issue](https://github.com/terraform-providers/terraform-provider-aws/issues/8017)
+may be related.
 
 ## Migrations Involving the Database or Media Files
 
