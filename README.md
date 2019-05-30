@@ -46,7 +46,7 @@ edit it directly.
             * [Delete Old Bucket](#delete-old-bucket)
       * [License](#license)
 
-<!-- Added by: chathan, at: Wed May  1 12:23:38 EDT 2019 -->
+<!-- Added by: chathan, at: Thu May 30 15:33:10 EDT 2019 -->
 
 <!--te-->
 
@@ -215,7 +215,7 @@ being deployed that has its command overridden to run the migrations.
 The last piece of the puzzle is how to handle the asynchronous nature of the
 database migration. Since the Lambda function mentioned above only starts the
 migration task, we don't know if it has finished by the time the new web servers
-have been provisioned. [This article][ecs-database-migration] describes a shift
+have been provisioned. [This article][ecs-database-migrations] describes a shift
 in thinking that helps to understand how to deal with this type of task within
 the context of an ECS environment. Specifically, we use the health check
 mentioned in the article to prevent any web servers running the new application
