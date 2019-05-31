@@ -24,6 +24,8 @@ edit it directly.
                * [Sentry](#sentry)
          * [Updating the Infrastructure](#updating-the-infrastructure)
             * [Workspaces](#workspaces)
+            * [Destroying Resources](#destroying-resources)
+               * [Caveats](#caveats)
       * [Architecture](#architecture)
          * [Application](#application)
             * [API](#api)
@@ -54,7 +56,7 @@ edit it directly.
             * [Delete Old Bucket](#delete-old-bucket)
       * [License](#license)
 
-<!-- Added by: chathan, at: Fri May 31 12:40:28 EDT 2019 -->
+<!-- Added by: chathan, at: Fri May 31 14:54:16 EDT 2019 -->
 
 <!--te-->
 
@@ -200,6 +202,41 @@ terraform workspace delete my-workspace
 
 *__Note:__ The workspace must be empty, ie have no resources, before it can be
 deleted.*
+
+#### Destroying Resources
+
+In addition to provisioning resources, Terraform makes it easy to destroy
+resources in a manner that respects the dependency graph. Just as we create a
+plan when provisioning resources, we can also create a plan to destroy them.
+
+To destroy everything in an environment:
+
+```bash
+terraform plan -destroy -out tfplan
+```
+
+Or we can be more specific and destroy a targeted set of resources such as the
+deployment infrastructure:
+
+```bash
+terraform plan -destroy -out tfplan -target module.deployment
+```
+
+After creating the plan, it can be executed with:
+
+```bash
+terraform apply tfplan
+```
+
+##### Caveats
+
+Occasionally when destroying resources, we will run into issues with load
+balancer listeners stating that they cannot be destroyed. These issues can
+usually be resolved by planning and executing a new destroy operation.
+
+The S3 bucket storing user uploaded files is another special case. In order for
+Terraform to delete the bucket, the bucket *must* be completely empty. This is
+to avoid accidental deletion of user files which are not recoverable.
 
 ## Architecture
 
