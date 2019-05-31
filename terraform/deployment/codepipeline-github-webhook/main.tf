@@ -16,7 +16,6 @@ resource "aws_codepipeline_webhook" "this" {
 
 resource "github_repository_webhook" "this" {
   events     = var.github_events
-  name       = "web"
   repository = var.github_repository
 
   configuration {

@@ -15,11 +15,13 @@ provider "archive" {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region  = var.aws_region
+  version = "~> 2.12"
 }
 
 provider "github" {
   organization = "knowmetools"
+  version      = "~> 2.1"
 }
 
 provider "null" {
