@@ -198,7 +198,7 @@ resource "aws_security_group_rule" "api_out_db" {
 resource "aws_s3_bucket" "static" {
   acl           = "public-read"
   bucket        = "${var.app_slug}-static"
-  force_destroy = true
+  force_destroy = false
 
   tags = merge(
     var.base_tags,
