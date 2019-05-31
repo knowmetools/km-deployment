@@ -23,6 +23,7 @@ edit it directly.
                * [GitHub](#github)
                * [Sentry](#sentry)
          * [Updating the Infrastructure](#updating-the-infrastructure)
+            * [Workspaces](#workspaces)
       * [Architecture](#architecture)
          * [Application](#application)
             * [API](#api)
@@ -53,7 +54,7 @@ edit it directly.
             * [Delete Old Bucket](#delete-old-bucket)
       * [License](#license)
 
-<!-- Added by: chathan, at: Fri May 31 12:07:34 EDT 2019 -->
+<!-- Added by: chathan, at: Fri May 31 12:40:28 EDT 2019 -->
 
 <!--te-->
 
@@ -157,6 +158,16 @@ export TF_VAR_sentry_dsn=your-sentry-dsn
 
 ### Updating the Infrastructure
 
+Before beginning, ensure that Terraform is initialized. This ensures all
+providers and external modules are downloaded.
+
+```bash
+# All Terraform commands should be run from the "terraform/" subdirectory.
+cd terraform
+
+terraform init
+```
+
 We use Terraform's concept of workspaces to separate our environments. Because
 of this, it is crucial you are on the correct workspace before applying changes.
 By convention we use the `production` workspace for our production
@@ -171,6 +182,24 @@ terraform plan -out tfplan
 # After reviewing the plan to make sure there are no unexpected changes:
 terraform apply tfplan
 ```
+
+#### Workspaces
+
+While the `production` workspace should always exist, other workspaces will need
+to be created and destroyed explicitly. To create a new workspace:
+
+```bash
+terraform workspace new my-workspace
+```
+
+The workspace may then be deleted with:
+
+```bash
+terraform workspace delete my-workspace
+```
+
+*__Note:__ The workspace must be empty, ie have no resources, before it can be
+deleted.*
 
 ## Architecture
 
