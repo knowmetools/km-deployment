@@ -20,6 +20,7 @@ edit it directly.
             * [Credentials and Secrets](#credentials-and-secrets)
                * [Apple](#apple)
                * [AWS](#aws)
+               * [GitHub](#github)
                * [Sentry](#sentry)
          * [Updating the Infrastructure](#updating-the-infrastructure)
       * [Architecture](#architecture)
@@ -52,7 +53,7 @@ edit it directly.
             * [Delete Old Bucket](#delete-old-bucket)
       * [License](#license)
 
-<!-- Added by: chathan, at: Fri May 31 11:25:51 EDT 2019 -->
+<!-- Added by: chathan, at: Fri May 31 12:07:34 EDT 2019 -->
 
 <!--te-->
 
@@ -122,6 +123,17 @@ use (for example, `knowme`) by running:
 
 ```bash
 export AWS_PROFILE=knowme
+```
+
+##### GitHub
+
+In order to create the webhooks that allow us to start deployments when changes
+are pushed to GitHub, we need some way to authenticate. This can be accomplished
+using a "Personal Access Token" from GitHub. The only required scope for the
+token is `admin:repo_hook`. It should then be set in your environment as:
+
+```bash
+export GITHUB_TOKEN=github-token
 ```
 
 ##### Sentry
