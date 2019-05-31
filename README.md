@@ -16,6 +16,11 @@ edit it directly.
       * [Overview](#overview)
       * [Provisioning](#provisioning)
          * [Prerequisites](#prerequisites)
+            * [Terraform](#terraform)
+            * [Credentials and Secrets](#credentials-and-secrets)
+               * [Apple](#apple)
+               * [AWS](#aws)
+               * [Sentry](#sentry)
          * [Updating the Infrastructure](#updating-the-infrastructure)
       * [Architecture](#architecture)
          * [Application](#application)
@@ -29,6 +34,7 @@ edit it directly.
          * [Lambda Function for Database Migrations](#lambda-function-for-database-migrations)
          * [API Background Job Invocation](#api-background-job-invocation)
          * [Building the Web Application Twice](#building-the-web-application-twice)
+         * [What Triggers a Deployment](#what-triggers-a-deployment)
       * [Troubleshooting](#troubleshooting)
          * [Changing the Source Repository Branch](#changing-the-source-repository-branch)
       * [Migrations Involving the Database or Media Files](#migrations-involving-the-database-or-media-files)
@@ -46,7 +52,7 @@ edit it directly.
             * [Delete Old Bucket](#delete-old-bucket)
       * [License](#license)
 
-<!-- Added by: chathan, at: Thu May 30 15:33:10 EDT 2019 -->
+<!-- Added by: chathan, at: Fri May 31 11:25:51 EDT 2019 -->
 
 <!--te-->
 
@@ -70,9 +76,72 @@ CodeDeploy to publish new versions.
 
 ### Prerequisites
 
-* Terraform must be [downloaded][terraform-download] and accessible on your
-  `$PATH`. *Note we require Terraform 0.12+.*
-* You must have AWS credentials granting administrative access.
+#### Terraform
+
+Terraform must be [downloaded][terraform-download] and accessible on your
+`$PATH`. *Note we require Terraform 0.12+.*
+
+#### Credentials and Secrets
+
+The deployment process requires a variety of credentials in order to interact
+with various third-party services. The required information and recommended
+methods of passing that information to Terraform are listed below.
+
+As a general rule, credentials are passed to Terraform using environment
+variables with the format `TF_VAR_var_name` where `var_name` is the variable's
+name as defined within the Terraform configuration files.
+
+##### Apple
+
+We use Apple to manage subscriptions to Know Me and so we need a few pieces of
+information to facilitate this interaction.
+
+The first piece of information is the list of product IDs for the in-app
+purchases that give a premium subscription. These IDs should be provided as a
+comma separated list:
+
+```bash
+export TF_VAR_apple_km_premium_product_codes=product-code-1,product-code-2
+```
+
+The second required piece of information is the shared secret that we use to
+verify receipts with the Apple store. This information can be found in App Store
+Connect on the page for In-App Purchases under the button "App-Specific Shared
+Secret". It can be provided as:
+
+```bash
+export TF_VAR_apple_shared_secret=shared-secret
+```
+
+##### AWS
+
+You must have AWS credentials granting administrative access. The recommended
+method of passing these to Terraform is to create
+[a named profile][aws-named-profiles]. You can then select the AWS profile to
+use (for example, `knowme`) by running:
+
+```bash
+export AWS_PROFILE=knowme
+```
+
+##### Sentry
+
+We use [Sentry][sentry] for error reporting. To authorize the sending of events
+to Sentry, we need the DSN for the project. Per the Sentry documentation:
+
+> The DSN can be found in Sentry by navigating to [Project Name] -> Project
+> Settings -> Client Keys (DSN). Its template resembles the following:
+>
+> ```
+> '{PROTOCOL}://{PUBLIC_KEY}@{HOST}/{PROJECT_ID}'
+> ```
+
+
+This value should be set with:
+
+```bash
+export TF_VAR_sentry_dsn=your-sentry-dsn
+```
 
 ### Updating the Infrastructure
 
@@ -168,7 +237,7 @@ with the only difference being the resources that are targeted.
 ## Design Decisions and Quirks
 
 Here we hope to explain some of the rationale behind the design decisions made
-in this repository.
+in this repository as well as some of the quirks in the deployment process.
 
 ### Pipeline from Staging to Production
 
@@ -238,6 +307,25 @@ If we inspect the CodePipeline responsible for deployments, we can see that we
 actually build the web application twice; once for staging and once for
 production. This is because the API that the application interacts with is
 baked in at build time, so we have to build a version for each environment.
+
+### What Triggers a Deployment
+
+The only active triggers that will kick of a new run of the deployment pipeline
+are changes to the watched branch in the source repository of either the API or
+web application, or changes to the deployment parameters for the ECS application
+which are stored in S3.
+
+The exception to this is if the CodePipeline itself is (re)created for some
+reason, it will run immediately.
+
+This means that some changes will not be picked up immediately. For example,
+modifying any of the Lambda functions that are used by the deployment process
+will only take effect the next time they are invoked. Additionally, changes to
+CodeBuild projects (eg the API build process) do not trigger a new deployment.
+
+To manually trigger a deployment, we can navigate to the appropriate
+CodePipeline within the AWS console and use the "Release Change" button to start
+a new deployment.
 
 ## Troubleshooting
 
@@ -430,10 +518,12 @@ the old S3 bucket using the AWS Console, CLI, etc.
 This project is licensed under the [MIT License](LICENSE).
 
 
+[aws-named-profiles]: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html
 [codedeploy-ecs-hooks]: https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-hooks.html#appspec-hooks-ecs
 [ecs-database-migrations]: https://engineering.instawork.com/elegant-database-migrations-on-ecs-74f3487da99f
 [know-me-api]: https://github.com/knowmetools/km-api
 [know-me-web-app]: https://github.com/knowmetools/km-web
 [lambda-migration]: scripts/api-lambda-tasks/migration_handler.py
+[sentry]: https://sentry.io
 [terraform]: https://www.terraform.io/
 [terraform-download]: https://www.terraform.io/downloads.html
