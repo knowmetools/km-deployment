@@ -69,6 +69,10 @@ module "api_cluster" {
       value = "True"
     },
     {
+      name  = "DJANGO_KNOW_ME_PREMIUM_ENABLED"
+      value = "True"
+    },
+    {
       name  = "DJANGO_PASSWORD_RESET_URL"
       value = "https://${var.web_app_domain}/reset-password/{key}"
     },
