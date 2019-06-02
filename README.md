@@ -550,25 +550,15 @@ have the ability to update data in these locations. This includes web servers,
 background jobs, deployment processes, etc.
 
 An example of how to migrate the current infrastructure is given below and
-involves stopping the ECS service that provides our API web servers.
+involves stopping the ECS service that provides our API web servers as well as
+the deployment process.
 
 ```
-terraform plan -out tfplan -destroy -target module.api_cluster.aws_ecs_service.api
+terraform plan -out tfplan -destroy -target module.prod_app.module.api.module.api_cluster.aws_ecs_service.api -target module.deployment
 terraform apply tfplan
 ```
 
-*__Note:__ The deployment process for the API should also be stopped because it
-touches the database.*
-
 ### DB Migration
-
----
-
-*__Note:__ The database is no longer exposed to the public by default. In order
-to access it, we must first make it publicly accessible and add a security group
-rule that allows us access.*
-
----
 
 The first step is to remove the database from the Terraform state file. This
 prevents Terraform from deleting it until we have finished the migration and are
@@ -577,7 +567,7 @@ sure that we have all the data.
 #### State Removal
 
 ```
-terraform state rm aws_db_instance.database
+terraform state rm module.prod_app.module.api.module.db.aws_db_instance.this
 ```
 
 Terraform no longer knows about the database and will create a new database
@@ -594,7 +584,7 @@ update the auto-generated password for the application database user so that we
 can create the user role in the next step.
 
 ```
-terraform plan -out tfplan -target aws_db_instance.database -target random_string.db_password
+terraform plan -out tfplan -target module.prod_app.module.api.module.db.aws_db_instance.this -target module.prod_app.module.api.random_string.db_password
 terraform apply tfplan
 ```
 
@@ -615,7 +605,7 @@ The first step is to remove the S3 bucket from the Terraform state file. Before
 removing it, take note of the bucket name since it will be used later.
 
 ```
-terraform state rm aws_s3_bucket.static
+terraform state rm module.prod_app.module.api.aws_s3_bucket.static
 ```
 
 This prevents Terraform from deleting the S3 bucket until we have copied over
@@ -627,7 +617,7 @@ We can now create the new bucket with Terraform. Take note of the new bucket
 name given in the plan file.
 
 ```
-terraform plan -out tfplan -target aws_s3_bucket.static
+terraform plan -out tfplan -target module.prod_app.module.api.aws_s3_bucket.static
 terraform apply tfplan
 ```
 
