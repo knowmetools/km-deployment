@@ -2,12 +2,26 @@ output "database_admin_password_ssm_param" {
   value = aws_ssm_parameter.db_admin_password
 }
 
+output "database_admin_password" {
+  sensitive = true
+  value     = module.db.instance.password
+}
+
 output "database_admin_user" {
   value = module.db.instance.username
 }
 
+output "database_password" {
+  sensitive = true
+  value     = random_string.db_password.result
+}
+
 output "database_password_ssm_param" {
   value = aws_ssm_parameter.db_password
+}
+
+output "database_user" {
+  value = var.application_db_user
 }
 
 output "ecs_cluster" {

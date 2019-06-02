@@ -46,6 +46,11 @@ output "api_web_container_port" {
   value = module.api.web_container_port
 }
 
+output "database_admin_password" {
+  sensitive = true
+  value     = module.api.database_admin_password
+}
+
 output "database_admin_password_ssm_param" {
   value = module.api.database_admin_password_ssm_param
 }
@@ -54,8 +59,17 @@ output "database_admin_user" {
   value = module.api.database_admin_user
 }
 
+output "database_password" {
+  sensitive = true
+  value     = module.api.database_password
+}
+
 output "database_password_ssm_param" {
   value = module.api.database_password_ssm_param
+}
+
+output "database_user" {
+  value = module.api.database_user
 }
 
 output "web_app_s3_bucket" {

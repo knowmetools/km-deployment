@@ -56,7 +56,7 @@ edit it directly.
             * [Delete Old Bucket](#delete-old-bucket)
       * [License](#license)
 
-<!-- Added by: chathan, at: Fri May 31 14:54:16 EDT 2019 -->
+<!-- Added by: chathan, at: Sun Jun  2 10:48:55 EDT 2019 -->
 
 <!--te-->
 
@@ -493,11 +493,12 @@ To backup the old database, run the following:
 pg_dump -d appdb -h $HOSTNAME -U $USER > dump.sql
 ```
 
-Credentials can be obtained from Terraform:
+Credentials can be obtained from Terraform. Pick the appropriate prefix based on
+the environment you are targeting (`staging` or `production`):
 
 ```
-terraform output database_user
-terraform output database_password
+terraform output staging_db_user
+terraform output staging_db_password
 ```
 
 #### Create New Database
@@ -514,11 +515,12 @@ terraform apply tfplan
 #### Create Role
 
 Before we can restore the database, we have to create the app database user.
-First, obtain the admin credentials using:
+First, obtain the admin credentials using the following command, selecting the
+appropriate environment (`production` or `staging`):
 
 ```
-terraform output database_admin_user
-terraform output database_admin_password
+terraform output staging_db_admin_user
+terraform output staging_db_admin_password
 ```
 
 Then log in as the admin user.
@@ -533,11 +535,13 @@ Execute the following statement:
 CREATE ROLE app_db_user WITH LOGIN PASSWORD '$PASSWORD';
 ```
 
-The credentials to use here can again be pulled from Terraform:
-
+The credentials to use here can again be pulled from Terraform. Pick the
+appropriate prefix based on the environment you are targeting (`staging` or 
+`production`):
+                                                                
 ```
-terraform output database_user
-terraform output database_password
+terraform output staging_db_user
+terraform output staging_db_password
 ```
 
 #### Restore Data
