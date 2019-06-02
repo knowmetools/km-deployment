@@ -434,7 +434,105 @@ appears that
 [this GitHub issue](https://github.com/terraform-providers/terraform-provider-aws/issues/8017)
 may be related.
 
+## Database Backups and Restores
+
+In some cases it may be necessary or desired to manually backup or restore the
+application database. The following procedures assume the Postgres command line
+tools are installed.
+
+One caveat to database backups is that the data may contain references to
+external media files (stored in S3). If the backed up data is restored to a
+different environment than the one it came from, these references may not be
+resolvable and will result in 404 errors.
+
+*__Note:__ When an RDS instance is destroyed, it automatically creates a final
+snapshot. This snapshot may be used to provision a new instance with the
+contained data, but it is not possible to move this snapshot outside of AWS or
+interact with it like a normal database dump.*
+
+### Database Access
+
+Part of the security measures for the API dictate that the database is not
+publicly accessible. As a result of this, the RDS instance must be marked as
+publicly accessible and placed in a security group allowing outside connections
+before any backup or restore procedures.
+
+### Backup
+
+To backup a database, we first need to obtain the credentials of the database
+user that the API itself uses. Depending on the environment you are targeting
+within your current workspace (`production` or `staging`), the prefix of the
+command will be different.
+
+```bash
+terraform output staging_db_user
+terraform output staging_db_password
+```
+
+Using those credentials, we can then connect to the database being backed up:
+
+```
+pg_dump -d appdb -h $HOSTNAME -U $USER > dump.sql
+```
+
+This will create a file, `dump.sql`, in your working directory with the full
+contents of the targeted database. *__This may contain sensitive data and should
+be treated as such.__*
+
+### Restore
+
+The restore process involves two steps. First we must ensure that the standard
+database user role exists. Then we can restore the database using that role. The
+first step is only necessary on a new database that does not have the role yet.
+
+For both steps, we will need the credentials of the application database user.
+These credentials can be obtained from Terraform:
+
+```bash
+terraform output staging_db_user
+terraform output staging_db_password
+```
+
+#### Role Creation
+
+To create the application user role, we need admin credentials. These can be
+pulled from Terraform. Again, the prefix of the outputs should be selected
+based on the environment being targeted.
+
+```bash
+terraform output staging_db_admin_user
+terraform output staging_db_admin_password
+```
+
+With these credentials we can connect to the target database:
+
+```bash
+psql -h $HOSTNAME -d appdb -U $ADMIN_USER
+```
+
+We can now create the application user role with the statement:
+
+```postgresql
+CREATE ROLE app_db_user WITH LOGIN PASSWORD '$PASSWORD';
+```
+
+#### Restoring Data
+
+We can now connect as the application database user and restore the backup.
+
+```bash
+psql -h $HOSTNAME -d appdb -U $USER < dump.sql
+```
+
 ## Migrations Involving the Database or Media Files
+
+---
+
+*__These instructions are intended for the use case when the identifier of an
+S3 bucket or RDS instance is being changed due to changes within the Terraform
+configuration. They will not work if the identifier does not change.__*
+
+---
 
 The only part of our infrastructure that requires special care to replace is our
 database and the S3 bucket storing user-uploaded files.
@@ -487,19 +585,7 @@ instance the next time it is run.
 
 #### Backup
 
-To backup the old database, run the following:
-
-```
-pg_dump -d appdb -h $HOSTNAME -U $USER > dump.sql
-```
-
-Credentials can be obtained from Terraform. Pick the appropriate prefix based on
-the environment you are targeting (`staging` or `production`):
-
-```
-terraform output staging_db_user
-terraform output staging_db_password
-```
+Use the above instructions to backup the database.
 
 #### Create New Database
 
@@ -512,45 +598,9 @@ terraform plan -out tfplan -target aws_db_instance.database -target random_strin
 terraform apply tfplan
 ```
 
-#### Create Role
+#### Restoring Data
 
-Before we can restore the database, we have to create the app database user.
-First, obtain the admin credentials using the following command, selecting the
-appropriate environment (`production` or `staging`):
-
-```
-terraform output staging_db_admin_user
-terraform output staging_db_admin_password
-```
-
-Then log in as the admin user.
-
-```
-psql -h $HOSTNAME -d appdb -U $ADMIN_USER
-```
-
-Execute the following statement:
-
-```
-CREATE ROLE app_db_user WITH LOGIN PASSWORD '$PASSWORD';
-```
-
-The credentials to use here can again be pulled from Terraform. Pick the
-appropriate prefix based on the environment you are targeting (`staging` or 
-`production`):
-                                                                
-```
-terraform output staging_db_user
-terraform output staging_db_password
-```
-
-#### Restore Data
-
-We can now connect as the app database user and restore the backup.
-
-```
-psql -h $HOSTNAME -d appdb -U $USER < dump.sql
-```
+Use the above instructions to restore data to the new database.
 
 #### Delete Old Database
 
